@@ -1,40 +1,106 @@
 function vertexShader() {
   return `
 
-  
-    varying float vAmount;
+  // Adds the text in the calsspicperling noise function
+    ${classic3DNoise()}
+    ${classicPerlinNoise()}
 
-    uniform sampler2D disTexture;
+    // distortion with noise
+    varying vec2 vUv;
+    varying float noise;
     uniform float disScale;
+    uniform float frequency;
+    uniform float amplitude;
+    uniform float numberOfOctaves;
+    varying float displacement;
+    
+    uniform sampler2D disTexture;
+    varying float vAmount;
+    uniform float time;
+    // Function that calculates turbulence
+    // float fbm( vec3 p ) 
+    // {
+    //   float numberOfOctaves = 5.0;
+    //   float value = 0.0;
+    //   float amplitude = 0.5;
+    //   float frequency = 1.0;
+    
+    //   for (float f = 0.0 ; f < numberOfOctaves ; f++ ){
+    //     float power = pow( 2.0, f );
+    //     value += amplitude *  cnoise( vec3( frequency * p ) ) ;
+    //     frequency *= 2.0;
+    //     amplitude *= 0.5;
+    //   }
+    
+    //   return value;
+    
+    // }
+    
+        float fbm (in vec2 st) {
+            // Initial values
+            float value = 0.0;
+            float amplitude = 1.0;
 
+            //
+            // Loop of octaves
+        
+            for (float i = 0.0; i < numberOfOctaves; i++) {
+                value += amplitude * cnoise( vec3( frequency * st,1.0*frequency ) );
+                st *= 2.592;
+                amplitude *= 0.6;
+            }
+            return value;
+        }
     
       void main() {
         vec4 bumpData = texture2D( disTexture, uv );
+        float nice = fbm( uv );
         vAmount = bumpData.r;
+        float test = 100.0;
+
+        // get a 3d noise using the position, low frequency
+        float b =  noise;
+        // get a turbulent 3d noise using the normal
+        displacement = nice * disScale;
+        // move the position along the normal and transform it
+        float newX = position.x;
+        float newY = position.y;
+        float newZ = position.z;
+
+        vec3 newPosition = position + normal * nice *  disScale;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( newPosition, 1.0 );  
         
 
-      
-        // move the position along the normal and transform it
-        vec3 newPosition = position + normal * vAmount * disScale;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4( newPosition, 1.0 );    
+
+
       }`;
 }
 function fragmentShader() {
   return `
     
-    varying float vAmount;
-    //varying float noise;
-    //uniform float time;
+    varying vec2 vUv;
+    varying float noise;
+    varying float displacement;
+    uniform float time;
     
-    void main() { //           Color gradient main                Color gradient edge
+    void main() {
+      
+      
+                //           Color gradient main                Color gradient edge
       //                       minHT   Maxht mapcolor                minHT   Maxht mapcolor        
-      if (vAmount > 0.1) { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); } // water
-      vec3 water = (smoothstep( -0.5, 0.25, vAmount ) - smoothstep( 0.19, 0.20, vAmount ))  * vec3( 0.0, 0.0, 1.0 );
-      vec3 sand = (smoothstep( 0.18, 0.22, vAmount ) - smoothstep( 0.20, 0.30, vAmount ))  * vec3( 0.76, 0.7, 0.5 );
-      vec3 grass = (smoothstep( 0.20, 0.46, vAmount ) - smoothstep( 0.23, 0.60, vAmount ))  * vec3( 0.0, 0.7, 0.1 );
-      vec3 rock = (smoothstep( 0.43, 0.75, vAmount ) - smoothstep( 0.50, 0.85, vAmount ))  * vec3( 1, 1, 0.1 );
-      vec3 snow = (smoothstep( 0.75, 0.8, vAmount ))  * vec3( 1, 1, 1 );
-      gl_FragColor = vec4( rock + water + sand + grass + snow , 1.0 );
+      
+      vec3 water = (smoothstep( -1000.0, -0.5, displacement ) - smoothstep( -0.16, -0.15, displacement ))  * vec3( 0.0, 0.0, 1.0 );
+      vec3 sand = (smoothstep( -1.0, 1.4, displacement ) - smoothstep( 1.2, 1.3, displacement ))  * vec3( 0.76, 0.7, 0.5 );
+      vec3 grass = (smoothstep( -1.2, 8.0, displacement ) - smoothstep( 09.8, 10.3, displacement ))  * vec3( 0.0, 0.7, 0.1 );
+      vec3 rock = (smoothstep( 8.10, 16.0, displacement ) - smoothstep( 15.80, 16.22, displacement ))  * vec3( 0.38, 0.33, 0.28 );
+      vec3 snow = (smoothstep( 15.0, 16.0, displacement ))  * vec3( 1, 1, 1 );
+      gl_FragColor = vec4( (water + sand + grass + rock  + snow)*0.8, 1.0);
+      //if(displacement < -0.5){(smoothstep( -5.0, -0.5, displacement ) - smoothstep( -0.49, -0.50, displacement ))  * vec3( 0.0, 0.0, 1.0 )}
+      // if (displacement > -0.5) gl_FragColor = vec4( 0.76,0.7,0.5, 1.0 ); //sand
+      // if (displacement > 5.0) gl_FragColor = vec4( 0.0, 0.7, 0.1, 1.0 ); //grass
+      // if (displacement > 10.0) gl_FragColor = vec4( 0.38, 0.33, 0.28, 1.0 ); //rock
+      // if (displacement > 50.0) gl_FragColor = vec4( 1.0,1.0,1.0, 1.0 );
+     
       
     
     }
@@ -53,23 +119,29 @@ var container,
   fov = 30;
   
   var planeValues = {
-    widthSeg: 100,
-    heightSeg: 100,
+    widthSeg: 128,
+    heightSeg: 128,
     horTexture: 10,
     verTexture: 10,
-    displacement: 50,
+    displacement: 28,
+    height:1000,
+    width: 1000,
   }
   //Gui control values
   var planeControls = {
-    width: 100,
-    height: 100,
-    displacement: 100,
+    width: 1000,
+    height: 1000,
+    displacement: 28.0,
+    frequency: 2.0,
+    amplitude: 1.0,
+    numberOfOctaves: 5.0,
   
   }
   
   // grab the container from the DOM
   container = document.getElementById( "container" );
 
+  
   // create a scene
   scene = new THREE.Scene();
   renderer = new THREE.WebGLRenderer();
@@ -86,7 +158,7 @@ var container,
   );
  
   controls = new THREE.OrbitControls( camera, renderer.domElement );
-  camera.position.set( 0, 20, 100 );
+  camera.position.set( 0, 100, 200 );
 
 
  
@@ -96,12 +168,19 @@ var container,
   
   const disMap = new THREE.TextureLoader().load('http://127.0.0.1:5500/Images/hmap.jpg');
   
-  const uniforms = { 
-    disTexture: { value: disMap },
-    disScale : { value: planeValues.displacement },
+  var uniforms = { 
+    disTexture: { value: disMap },    
+    time: { // float initialized to 0
+      type: "f",
+      value: 0.0},
+    disScale : { value: 100.0 },
+    frequency: { value: 2.0 },
+    amplitude: { value: 1.0 },
+    numberOfOctaves: { value: 5.0 },
+    time: { value: 0.0 },
 
   };
-  
+  uniforms[ 'time' ].value =  ( Date.now() - start );
   // console.log(uniforms)
   // const groundMaterial = new THREE.MeshStandardMaterial({
   //   color: 0x000011,
@@ -119,7 +198,7 @@ var container,
     } );   
             
                                 
- const ground = new THREE.PlaneGeometry( 1000, 1000,planeValues.widthSeg,planeValues.heightSeg )
+ const ground = new THREE.PlaneGeometry( planeValues.width, planeValues.height,planeValues.widthSeg,planeValues.heightSeg )
 
 
   groundMesh = new THREE.Mesh(ground, material);
@@ -156,11 +235,12 @@ scene.add(cube)
 
   //Adding sliders
   planeFolder.add(cube.rotation, 'x', 0, Math.PI * 2)
-  planeFolder.add( planeControls, 'width', 1, 100 ).name( 'Width' ).listen();
-  planeFolder.add( planeControls, 'height', 1, 100 ).name( 'Height' ).listen();
+  planeFolder.add( planeControls, 'frequency', 0, 10 ).name( 'Frequency' ).listen();
+  planeFolder.add( planeControls, 'amplitude', 0, 10 ).name( 'Amplitude' ).listen();
+planeFolder.add( planeControls, 'numberOfOctaves', 0, 10 ).name( 'Octaves' ).listen();
+  planeFolder.add( planeControls, 'displacement', 0, 150 ).name( 'Displacement' ).listen();
  // planeFolder.add( groundMesh.material, 'displacementScale', 1, 100 ).name( 'Displacement' ).listen();
   planeFolder.add(groundMesh.material, 'wireframe').name('Wireframe').listen();
-  planeFolder.add(groundMesh.rotation, 'x', 0, Math.PI*2).name('Width Segments').listen();
   //Light
 
   
@@ -173,7 +253,7 @@ scene.add(cube)
   // light2.position.set(-10, -10, -10)
   // scene.add(light2) 
 //light intensity
-  const intensity = 50;
+  const intensity = 1;
 // hemispheric light
 
 // const skyColor = 0xB1E1FF;  // light blue
@@ -182,7 +262,7 @@ scene.add(cube)
 //ambient light
 
 const ambientLight = new THREE.AmbientLight(0x404040, intensity); // soft white light
-scene.add(ambientLight);
+//scene.add(ambientLight);
 
  // scene.add(groundGeometry);
   
@@ -196,8 +276,11 @@ function animate() {
   //Gui updates
   //planeValues.widthSeg = planeControls.Width;
   //planeValues.heightSeg = planeControls.Height;
-  groundMesh.geometry.heightSeg = planeControls.displacement;
-  console.log(planeValues.displacement);
+  uniforms.disScale.value = planeControls.displacement;
+  uniforms.frequency.value = planeControls.frequency;
+  uniforms.amplitude.value = planeControls.amplitude;
+  uniforms.numberOfOctaves.value = planeControls.numberOfOctaves;
+ // console.log(uniforms.time.value);
   
  
   render();
@@ -205,6 +288,7 @@ function animate() {
 
 }
 function render() {
+  material.uniforms[ 'time' ].value = .00025 * ( Date.now() - start );
   renderer.render( scene, camera );
   
 
