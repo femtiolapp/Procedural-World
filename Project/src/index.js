@@ -39,15 +39,16 @@ function vertexShader() {
         float fbm (in vec2 st) {
             // Initial values
             float value = 0.0;
-            float amplitude = 1.0;
+           // float amplitude = 1.0;
+            float A = amplitude;
 
             //
             // Loop of octaves
         
             for (float i = 0.0; i < numberOfOctaves; i++) {
-                value += amplitude * cnoise( vec3( frequency * st,1.0*frequency ) );
+                value += A * cnoise( vec3( frequency * st,1.0*frequency ) );
                 st *= 2.592;
-                amplitude *= 0.6;
+                A *= 0.6;
             }
             return value;
         }
@@ -90,7 +91,7 @@ function fragmentShader() {
       //                       minHT   Maxht mapcolor                minHT   Maxht mapcolor        
       
       vec3 water = (smoothstep( -1000.0, -0.5, displacement ) - smoothstep( -0.16, -0.15, displacement ))  * vec3( 0.0, 0.0, 1.0 );
-      vec3 sand = (smoothstep( -1.0, 1.4, displacement ) - smoothstep( 1.2, 1.3, displacement ))  * vec3( 0.76, 0.7, 0.5 );
+      vec3 sand = (smoothstep( -1.0, 1.4, displacement ) - smoothstep( 1.2, 1.25, displacement ))  * vec3( 0.76, 0.7, 0.5 );
       vec3 grass = (smoothstep( -1.2, 8.0, displacement ) - smoothstep( 09.8, 10.3, displacement ))  * vec3( 0.0, 0.7, 0.1 );
       vec3 rock = (smoothstep( 8.10, 16.0, displacement ) - smoothstep( 15.80, 16.22, displacement ))  * vec3( 0.38, 0.33, 0.28 );
       vec3 snow = (smoothstep( 15.0, 16.0, displacement ))  * vec3( 1, 1, 1 );
@@ -237,7 +238,7 @@ scene.add(cube)
   planeFolder.add(cube.rotation, 'x', 0, Math.PI * 2)
   planeFolder.add( planeControls, 'frequency', 0, 10 ).name( 'Frequency' ).listen();
   planeFolder.add( planeControls, 'amplitude', 0, 10 ).name( 'Amplitude' ).listen();
-planeFolder.add( planeControls, 'numberOfOctaves', 0, 10 ).name( 'Octaves' ).listen();
+  planeFolder.add( planeControls, 'numberOfOctaves', 0, 10 ).name( 'Octaves' ).listen();
   planeFolder.add( planeControls, 'displacement', 0, 150 ).name( 'Displacement' ).listen();
  // planeFolder.add( groundMesh.material, 'displacementScale', 1, 100 ).name( 'Displacement' ).listen();
   planeFolder.add(groundMesh.material, 'wireframe').name('Wireframe').listen();
@@ -268,7 +269,6 @@ const ambientLight = new THREE.AmbientLight(0x404040, intensity); // soft white 
   
  
 
-
 function animate() {
 
   requestAnimationFrame( animate );
@@ -280,6 +280,7 @@ function animate() {
   uniforms.frequency.value = planeControls.frequency;
   uniforms.amplitude.value = planeControls.amplitude;
   uniforms.numberOfOctaves.value = planeControls.numberOfOctaves;
+
  // console.log(uniforms.time.value);
   
  
