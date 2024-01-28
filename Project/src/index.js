@@ -145,6 +145,7 @@ var container,
   
   // create a scene
   scene = new THREE.Scene();
+  
   renderer = new THREE.WebGLRenderer();
   renderer.setPixelRatio( window.devicePixelRatio );
   renderer.setSize( window.innerWidth, window.innerHeight );
@@ -208,7 +209,10 @@ var container,
   groundMesh.rotation.x = -Math.PI / 2;
   groundMesh.position.y = -0.5;
 
-
+  //Bounding box of the plane
+  var bbox = new THREE.Box3().setFromObject(groundMesh);
+  var helper = new THREE.Box3Helper( bbox, 0xffff00 );
+  scene.add( helper );
 
 scene.add(groundMesh)
 
@@ -220,19 +224,20 @@ scene.add(groundMesh)
   renderer.setPixelRatio( window.devicePixelRatio );
 
   container.appendChild( renderer.domElement );
-
+  const cameraVizu= new THREE.CameraHelper( camera );
+  scene.add( cameraVizu ); 
 
   //Create new gui
   const gui = new dat.GUI();
   const planeFolder = gui.addFolder( 'Plane' );
   const geometry = new THREE.BoxGeometry()
-const cubeMat = new THREE.MeshBasicMaterial({
+  const cubeMat = new THREE.MeshBasicMaterial({
     color: 0x00ff00,
     wireframe: true,
 })
 
 const cube = new THREE.Mesh(geometry, cubeMat)
-scene.add(cube)
+
 
   //Adding sliders
   planeFolder.add(cube.rotation, 'x', 0, Math.PI * 2)
