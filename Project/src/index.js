@@ -1,3 +1,5 @@
+
+
 function vertexShader() {
   return `
 
@@ -12,29 +14,16 @@ function vertexShader() {
     uniform float frequency;
     uniform float amplitude;
     uniform float numberOfOctaves;
-    varying float displacement;
+    varying float noise_Displacement;
     
     uniform sampler2D disTexture;
     varying float vAmount;
+    varying vec3 vNormal;
     uniform float time;
-    // Function that calculates turbulence
-    // float fbm( vec3 p ) 
-    // {
-    //   float numberOfOctaves = 5.0;
-    //   float value = 0.0;
-    //   float amplitude = 0.5;
-    //   float frequency = 1.0;
+
     
-    //   for (float f = 0.0 ; f < numberOfOctaves ; f++ ){
-    //     float power = pow( 2.0, f );
-    //     value += amplitude *  cnoise( vec3( frequency * p ) ) ;
-    //     frequency *= 2.0;
-    //     amplitude *= 0.5;
-    //   }
     
-    //   return value;
-    
-    // }
+
     
         float fbm (in vec2 st) {
             // Initial values
@@ -44,7 +33,7 @@ function vertexShader() {
 
             //
             // Loop of octaves
-        
+
             for (float i = 0.0; i < numberOfOctaves; i++) {
                 value += A * cnoise( vec3( frequency * st,1.0*frequency ) );
                 st *= 2.592;
@@ -55,21 +44,59 @@ function vertexShader() {
     
       void main() {
         vec4 bumpData = texture2D( disTexture, uv );
-        float nice = fbm( uv );
+        float noise_val = fbm( uv );
         vAmount = bumpData.r;
         float test = 100.0;
 
         // get a 3d noise using the position, low frequency
-        float b =  noise;
+       // float b =  noise;
         // get a turbulent 3d noise using the normal
-        displacement = nice * disScale;
+        
         // move the position along the normal and transform it
-        float newX = position.x;
-        float newY = position.y;
-        float newZ = position.z;
+        float sin_abs = sin(time*2.0);
+        noise_Displacement = noise_val * disScale;
+        if(smoothstep( -1000.0, -0.35, noise_Displacement ) - smoothstep( -0.16, -0.15, noise_Displacement )> noise_Displacement )
+        {
 
-        vec3 newPosition = position + normal * nice *  disScale;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4( newPosition, 1.0 );  
+          // Displacement along z
+          float displacement = sin(position.x + time) ;
+          vec3 displacedPosition = position;
+          displacedPosition.z += displacement;
+      
+          // Derivative of displacement w.r.t x
+          float dDisplacement_dx = cos(position.x + time);
+          vec3 tangent = vec3(1.0, 0.0, dDisplacement_dx);
+      
+          // Recalculate the normal
+          vec3 binormal = vec3(0.0, 1.0, 0.0);
+          vNormal = normalize(cross(tangent, binormal));
+      
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
+        }
+        else
+        {
+          // Displacement along z
+          
+          vec3 newPos = vec3(position.x, position.y, position.z + noise_Displacement);
+          vNormal = vec3(normal.x, normal.y, normal.z + noise_Displacement );
+          vNormal = normalize(vNormal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4( newPos, 1.0 );
+        }
+        
+          //float z = sin(position.x + time);// + sin(position.x*0.3 + 2.0*time) + sin(position.x*0.8 + time*0.4) + sin(position.x*0.1 + time);
+          //vNormal = vec3(normal.x, normal.y, normal.z + z);
+         // vec3 binormal = vec3(1.0,0.0, position.x*cos(z + time));
+          //vec3 tanget = vec3(0.0,1.0, position.y*cos(z + time));
+        //  vNormal = cross(tanget, binormal);
+          //vNormal = vec3(normal.x, normal.y, normal.z + abs(z));
+
+          //vNormal = normalize(vNormal);
+          //gl_Position = projectionMatrix * modelViewMatrix * vec4( position.x, position.y,position.z + z, 1.0 );
+
+        //float z = sin(position.x   + time);
+       // float z = 2.0*sin(position.x* 0.5 + time)
+
+
         
 
 
@@ -81,21 +108,31 @@ function fragmentShader() {
     
     varying vec2 vUv;
     varying float noise;
-    varying float displacement;
+    varying float noise_Displacement;
     uniform float time;
-    
+   
+
+    uniform vec3 lightDirection;
+    varying vec3 vNormal;
+    vec3 lightColor = vec3( 1.0, 1.0, 1.0 );
     void main() {
       
       
                 //           Color gradient main                Color gradient edge
       //                       minHT   Maxht mapcolor                minHT   Maxht mapcolor        
       
-      vec3 water = (smoothstep( -1000.0, -0.5, displacement ) - smoothstep( -0.16, -0.15, displacement ))  * vec3( 0.0, 0.0, 1.0 );
-      vec3 sand = (smoothstep( -1.0, 1.4, displacement ) - smoothstep( 1.2, 1.25, displacement ))  * vec3( 0.76, 0.7, 0.5 );
-      vec3 grass = (smoothstep( -1.2, 8.0, displacement ) - smoothstep( 09.8, 10.3, displacement ))  * vec3( 0.0, 0.7, 0.1 );
-      vec3 rock = (smoothstep( 8.10, 16.0, displacement ) - smoothstep( 15.80, 16.22, displacement ))  * vec3( 0.38, 0.33, 0.28 );
-      vec3 snow = (smoothstep( 15.0, 16.0, displacement ))  * vec3( 1, 1, 1 );
-      gl_FragColor = vec4( (water + sand + grass + rock  + snow)*0.8, 1.0);
+      vec3 water = (smoothstep( -1000.0, -0.5, noise_Displacement ) - smoothstep( -0.16, -0.15, noise_Displacement ))  * vec3( 0.0, 0.0, 1.0 );
+      vec3 sand = (smoothstep( -1.0, 1.4, noise_Displacement ) - smoothstep( 1.2, 1.25, noise_Displacement ))  * vec3( 0.76, 0.7, 0.5 );
+      vec3 grass = (smoothstep( -1.2, 8.0, noise_Displacement ) - smoothstep( 09.8, 10.3, noise_Displacement ))  * vec3( 0.0, 0.7, 0.1 );
+      vec3 rock = (smoothstep( 8.10, 16.0, noise_Displacement ) - smoothstep( 15.80, 16.22, noise_Displacement ))  * vec3( 0.38, 0.33, 0.28 );
+      vec3 snow = (smoothstep( 15.0, 16.0, noise_Displacement ))  * vec3( 1, 1, 1 );
+
+     
+      vec3 lightDirection = normalize( lightDirection );
+      float nDotL =dot(lightDirection, vNormal);
+      vec3 diffuseLight = lightColor * nDotL;
+      gl_FragColor = vec4((water + sand + grass + rock  + snow) *diffuseLight, 1.0);
+    // gl_FragColor = vec4(vec3(0.0, 0.0, 1.0) *diffuseLight , 1.0);
       //if(displacement < -0.5){(smoothstep( -5.0, -0.5, displacement ) - smoothstep( -0.49, -0.50, displacement ))  * vec3( 0.0, 0.0, 1.0 )}
       // if (displacement > -0.5) gl_FragColor = vec4( 0.76,0.7,0.5, 1.0 ); //sand
       // if (displacement > 5.0) gl_FragColor = vec4( 0.0, 0.7, 0.1, 1.0 ); //grass
@@ -120,8 +157,8 @@ var container,
   fov = 30;
   
   var planeValues = {
-    widthSeg: 128,
-    heightSeg: 128,
+    widthSeg: 256,
+    heightSeg: 256,
     horTexture: 10,
     verTexture: 10,
     displacement: 28,
@@ -130,8 +167,8 @@ var container,
   }
   //Gui control values
   var planeControls = {
-    width: 1000,
-    height: 1000,
+    width: 100,
+    height: 200,
     displacement: 28.0,
     frequency: 2.0,
     amplitude: 1.0,
@@ -180,8 +217,11 @@ var container,
     amplitude: { value: 1.0 },
     numberOfOctaves: { value: 5.0 },
     time: { value: 0.0 },
+    lightDirection: { value: new THREE.Vector3( 1.0, 1.0, 1.0 ) },
+    
 
   };
+  var abc = new THREE.Vector3(1.0, 1.0, 1.0);
   uniforms[ 'time' ].value =  ( Date.now() - start );
   // console.log(uniforms)
   // const groundMaterial = new THREE.MeshStandardMaterial({
@@ -196,11 +236,12 @@ var container,
     wireframe: false,
     vertexShader: vertexShader(),
     fragmentShader: fragmentShader(),
+    lights: false,
 
     } );   
             
                                 
- const ground = new THREE.PlaneGeometry( planeValues.width, planeValues.height,planeValues.widthSeg,planeValues.heightSeg )
+ const ground = new THREE.PlaneGeometry( planeValues.height, planeValues.width, planeValues.heightSeg, planeValues.widthSeg);
 
 
   groundMesh = new THREE.Mesh(ground, material);
@@ -249,27 +290,12 @@ const cube = new THREE.Mesh(geometry, cubeMat)
   planeFolder.add(groundMesh.material, 'wireframe').name('Wireframe').listen();
   //Light
 
-  
-  
-  // const light = new THREE.PointLight(0xffffff, 2)
-  // light.position.set(0, 20, 10)
-  // scene.add(light)
-  
-  // const light2 = new THREE.PointLight(0xffffff, 2)
-  // light2.position.set(-10, -10, -10)
-  // scene.add(light2) 
+
 //light intensity
-  const intensity = 1;
-// hemispheric light
+  // const intensity = 0.5;
 
-// const skyColor = 0xB1E1FF;  // light blue
-// const groundColor = 0xB97A20;  // brownish orange
-// const light = new THREE.HemisphereLight(skyColor, groundColor, intensity);
-//ambient light
-
-const ambientLight = new THREE.AmbientLight(0x404040, intensity); // soft white light
-//scene.add(ambientLight);
-
+  // const directionalLight = new THREE.DirectionalLight( 0xffffff, intensity );
+  // scene.add( directionalLight );
  // scene.add(groundGeometry);
   
  
@@ -294,7 +320,7 @@ function animate() {
 
 }
 function render() {
-  material.uniforms[ 'time' ].value = .00025 * ( Date.now() - start );
+  material.uniforms[ 'time' ].value = .005 * ( Date.now() - start );
   renderer.render( scene, camera );
   
 
