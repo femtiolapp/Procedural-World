@@ -54,11 +54,11 @@ function vertexShader() {
         vec3 calcWave(in float wave_lenght , in float amplitude, in float time, in vec2 direction, in vec3 position) {
           vec3 result = vec3(0.0);
           vec2 d = getDirection(direction);
-          float xz = d.x * position.x + d.y * position.z;
-          float y = sin( xz * (wave_lenght/2.0) + time * 2.0 * wave_lenght)* amplitude;
-          float dx = cos(xz * (wave_lenght/2.0) + time * 2.0 * wave_lenght)*  (wave_lenght/2.0) * amplitude * d.x;
-          float dy = cos(xz * (wave_lenght/2.0) + time * 2.0 * wave_lenght) *  (wave_lenght/2.0) * amplitude * d.y;
-          result = vec3(dx, dy, y);
+          float xy = d.x * position.x + d.y * position.y;
+          float z = sin( xy * (wave_lenght/2.0) + time * 2.0 * wave_lenght)* amplitude;
+          float dx = cos(xy * (wave_lenght/2.0) + time * 2.0 * wave_lenght)*  (wave_lenght/2.0) * amplitude * d.x;
+          float dy = cos(xy * (wave_lenght/2.0) + time * 2.0 * wave_lenght) *  (wave_lenght/2.0) * amplitude * d.y;
+          result = vec3(dx, dy, z);
           return result;
         }
 
@@ -89,22 +89,26 @@ function vertexShader() {
           
           //vec3 disp = calcDisplacement(pos, time);
           // wave length , amplitude, time, direction, position
-          vec3 wave1 = calcWave(0.1, 1.0, time, vec2(150.0,30.0), pos);
-         vec3 wave2 = calcWave(1.4, 0.2, time, vec2(70.0,30.0), pos);
-         vec3 wave3 =  calcWave(1.0, 0.8, time, vec2(0.0,70.0), pos);
-         vec3 wave4 = calcWave(0.5, 4.0, time, vec2(245.0,200.0), pos);
-
-          vec3 new_norm = vec3(0.0, 0.0, 0.0 ) + vec3(wave1.x + wave2.x + wave3.x + wave4.x, 0.0 ,  wave1.y + wave2.y + wave3.y + wave4.y);;
-            
-          vNormal = normalize( normalMatrix* vec3(-new_norm.x, 1.0, -new_norm.y));
-          
+         vec3 wave1 = calcWave(0.5, 1.0, time, vec2(90.0,30.0), pos);
+         vec3 wave2 = calcWave(1.0, 0.4, time, vec2(70.0,30.0), pos);
+         vec3 wave3 = calcWave(0.8, 0.8, time, vec2(160.0,70.0), pos);
+         vec3 wave4 = calcWave(0.1, 2.4, time, vec2(245.0,200.0), pos);
+         vec3 biTangent = vec3(1.0, 0.0, wave1.x + wave2.x + wave3.x + wave4.x);
+         vec3 Tangent = vec3(0.0 , 1.0, wave1.y + wave2.y + wave3.y + wave4.y);
+          //vec3 new_norm = vec3(0.0, 0.0, 0.0 ) + vec3(wave1.x + wave2.x + wave3.x + wave4.x, 0.0 ,  wave1.y + wave2.y + wave3.y + wave4.y);
+          vec3 new_norm = cross(biTangent, Tangent);
+         // vNormal = normalize( normalMatrix* vec3(-new_norm.x, 1.0, -new_norm.y));
+          vNormal = normalize( normalMatrix* new_norm);
           
           float wave_Displacement = wave1.z + wave2.z + wave3.z + wave4.z;
-          vec3 displacedPosition = position + normal * wave_Displacement;
-          // displacedPosition.y += wave1.z;
-          // displacedPosition.y += wave2.z;
-          // displacedPosition.y += wave3.z;
-          // displacedPosition.y += wave4.z;
+          vec3 newPos = vec3(pos.x, pos.y, wave_Displacement);
+
+         // vec3 displacedPosition = vec3 (position.x + newPos.x, position.y + newPos.y, position.z + newPos.z);
+         vec3 displacedPosition = position + normal * wave_Displacement;
+          //  displacedPosition.z += wave1.z;
+          //  displacedPosition.y += wave2.z;
+          //  displacedPosition.y += wave3.z;
+          //  displacedPosition.y += wave4.z;
       
 
       
@@ -112,8 +116,8 @@ function vertexShader() {
       
           // // Calculate the light direction
        
-        vPosition = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPosition, 1.0);
+        vPosition = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
         }
         else
         {
@@ -153,6 +157,12 @@ function vertexShader() {
 }
 function fragmentShader() {
   return `
+  mat4 rotationX( in float angle ) {
+    return mat4(	1.0,		0,			0,			0,
+             0, 	cos(angle),	-sin(angle),		0,
+            0, 	sin(angle),	 cos(angle),		0,
+            0, 			0,			  0, 		1);
+  }
     
     varying vec2 vUv;
     varying float noise;
@@ -163,7 +173,7 @@ function fragmentShader() {
     uniform float lighty;
     uniform float lightz;
     uniform float time;
-   
+    //uniform vec3 cameraPosition;
 
     varying vec4 vPosition;
     varying vec3 vNormal;
@@ -173,28 +183,37 @@ function fragmentShader() {
       
       
                 //           Color gradient main                Color gradient edge
-      //                       minHT   Maxht mapcolor                minHT   Maxht mapcolor        
+      //                       minHT   Maxht mapcolor                minHT   Maxht mapcolor
+      float k_a = 0.3; //ambient
+      float k_d = 0.8; //diffuse
+      float k_s = 0.8; //specular
+      vec3 lightColor = vec3(1.0, 1.0, 1.0); 
+      vec3 n = normalize(vNormal); 
+            
       vec3 pos = vPosition.xyz;
       vec3 lightPosition = vec3(lightx, lighty, lightz);
-      vec3 lightDirection = normalize( normalize(lightPosition) - normalize(pos));
-      float NdotL = dot(lightDirection, vNormal);
-
+      vec3 lightDir   = normalize(lightPosition - pos);
+      vec3 cameraPos = cameraPosition;
+      float NdotL = dot(lightDir, n);
+      vec3 viewDir    = normalize(cameraPos - pos);
+      vec3 halfwayDir = normalize(lightDir + viewDir);
+      float shininess = 10.0;
+      float spec = pow(max(dot(n,halfwayDir), 0.0), shininess);
+     
       vec3 water = (smoothstep( -1000.0, -0.5, noise_Displacement ) - smoothstep( -0.16, -0.15, noise_Displacement ))  * vec3( 0.0, 0.0, 1.0 );
       vec3 sand = (smoothstep( -1.0, 1.4, noise_Displacement ) - smoothstep( 1.2, 1.25, noise_Displacement ))  * vec3( 0.76, 0.7, 0.5 );
       vec3 grass = (smoothstep( -1.2, 8.0, noise_Displacement ) - smoothstep( 09.8, 10.3, noise_Displacement ))  * vec3( 0.0, 0.7, 0.1 );
       vec3 rock = (smoothstep( 8.10, 16.0, noise_Displacement ) - smoothstep( 15.80, 16.22, noise_Displacement ))  * vec3( 0.38, 0.33, 0.28 );
       vec3 snow = (smoothstep( 15.0, 16.0, noise_Displacement ))  * vec3( 1, 1, 1 );
 
-     vec3 lightColor = vec3(water + sand + grass + rock  + snow);
-     vec3 diffuseLight = lightColor * NdotL;
-     // gl_FragColor = vec4(normalize(vNormal),1.0);//vec4((water + sand + grass + rock  + snow) *diffuseLight, 1.0);
-      vec3 finalColor = diffuseLight + lightColor *0.8;
+     vec3 groundColor = vec3(water + sand + grass + rock  + snow);
+     vec3 diffuseLight = groundColor * NdotL;
+     vec3 specular = lightColor * spec;
+     vec3 groundSpecular = groundColor * spec;
+   //  gl_FragColor = vec4(normalize(vNormal),1.0);//vec4((water + sand + grass + rock  + snow) *diffuseLight, 1.0);
+      vec3 finalColor =  k_a * groundColor + k_d * diffuseLight + k_s * specular;
      gl_FragColor = vec4(finalColor, 1.0);
-      //if(displacement < -0.5){(smoothstep( -5.0, -0.5, displacement ) - smoothstep( -0.49, -0.50, displacement ))  * vec3( 0.0, 0.0, 1.0 )}
-      // if (displacement > -0.5) gl_FragColor = vec4( 0.76,0.7,0.5, 1.0 ); //sand
-      // if (displacement > 5.0) gl_FragColor = vec4( 0.0, 0.7, 0.1, 1.0 ); //grass
-      // if (displacement > 10.0) gl_FragColor = vec4( 0.38, 0.33, 0.28, 1.0 ); //rock
-      // if (displacement > 50.0) gl_FragColor = vec4( 1.0,1.0,1.0, 1.0 );
+
      
       
     
@@ -233,6 +252,7 @@ var container,
     lightx: 0.0,
     lighty: 10.0,
     lightz: 0.0,
+
   
   }
   
@@ -279,6 +299,7 @@ var container,
     lightx:{value: 0.0} ,
     lighty: {value: 100.0},
     lightz: {value: 0.0},
+    
     
 
   };
@@ -360,9 +381,9 @@ const cube = new THREE.Mesh(geometry, cubeMat)
   //Light
 
   const cubeFolder = gui.addFolder('Cube')
-  cubeFolder.add(planeControls, 'lightx', 0, 1000)
-  cubeFolder.add(planeControls, 'lighty', 0, 1000)
-  cubeFolder.add(planeControls, 'lightz', 0, 1000)
+  cubeFolder.add(planeControls, 'lightx', -1000, 1000)
+  cubeFolder.add(planeControls, 'lighty', -1000, 1000)
+  cubeFolder.add(planeControls, 'lightz', -1000, 1000)
   cubeFolder.open()
 //light intensity
   // const intensity = 0.5;
