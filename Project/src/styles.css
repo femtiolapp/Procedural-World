@@ -4,3 +4,10 @@ body {
   padding: 0;
   background: #bdc3c7;
 }
+#container {
+  position: relative;
+}
+
+#container > div {
+  position: absolute;  
+}

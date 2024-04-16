@@ -30,7 +30,9 @@ function vertexShader() {
     float PI = 3.14159265359;
     
     
-
+        float rand(float x){
+          return fract(pow(sin(x)*10000.0, 2.0));
+        }
         mat4 rotationX( in float angle ) {
           return mat4(	1.0,		0,			0,			0,
                   0, 	cos(radians(angle)),	-sin(radians(angle)),		0,
@@ -138,49 +140,98 @@ function vertexShader() {
           return result;
 
       }
-      vec3 ccalcGerstnerWave(in float phase[4], in float wave_lenght[4] , in float amplitude[4], in float time, in vec2 direction[4], in vec3 position, in float[4] k, in float[4] Q) {
+      vec3 calcGerstnerWave(in float phase[4], in float wave_lenght[4] , in float amplitude[4], in float time, in vec2 direction[4], in vec3 position, in float[4] k, in float[4] Q, out vec3 Normal) {
         // Q = 0 normal sine, Q = 1/(W * A ) sharp crest
-          vec3 p = vec3(0.0);
-          // float freq = 2.0/wave_lenght;
-          // float speed = phase * freq; 
-          // vec2 d = getDirection(direction, position);
-          // float xy = d.x * position.x + d.y * position.y;
-          // float x = (Q*amplitude * d.x * cos(freq * xy + time *speed));
-          // float y = (Q*amplitude * d.y * cos(freq * xy + time *speed));
-          // float z = sin( xy * freq + time * speed )* amplitude; 
 
-          // p = vec3( x, y, z);
-          // float d_p = d.x * p.x + d.y * p.y;
-          // //Normal = vec3((d.x * freq * amplitude * cos(freq * xy * length(position) + time * speed)), ((d.y * freq * amplitude * cos(freq * xy * length(position) + time * speed))),(Q * freq * amplitude * sin(freq * xy * length(position) + time * speed)));
-          // Normal = vec3((d.x * freq * amplitude * cos(freq * d_p + time * speed)), ((d.y * freq * amplitude * cos(freq * d_p + time * speed))),(Q * freq * amplitude * sin(freq * d_p + time * speed)));
+          float freq_i = 0.0;
+          float speed_i = 0.0;
+          vec2 d = vec2(0.0);
+          float xy = 0.0; 
+          vec3 result = vec3(0.0); 
+           
+          vec3 biTangent = vec3(0.0);
+          vec3 Tangent = vec3(0.0);
+          float random_value = 0.0;
+          for(int i = 0; i < 4; i++)
+          {
+            freq_i = 2.0/wave_lenght[i];
+            speed_i = phase[i] * freq_i;
+            //vec2 d = normalize(vec2(sin(random_value),cos(random_value)));
+            d = normalize(getDirection(direction[i], position));
+            xy = d.x * position.x + d.y * position.y;
+            result.x += (Q[i] * amplitude[i] * d.x * cos(freq_i * xy + time * speed_i));
+            result.y += (Q[i] * amplitude[i] * d.y * cos(freq_i * xy + time * speed_i));
+            result.z += sin( xy * freq_i + time * speed_i )* amplitude[i];
+            biTangent.x += (Q[i] * pow(d.x,2.0) * amplitude[i] * freq_i * sin(freq_i * xy + time * speed_i));
+            biTangent.y += (Q[i] * d.x * d.y * amplitude[i] * freq_i * sin(freq_i * xy + time * speed_i));
+            biTangent.z += d.x * amplitude[i] * freq_i * cos(freq_i * xy + time * speed_i);
+            Tangent.x += (Q[i] * d.x * d.y * amplitude[i] * freq_i * sin(freq_i * xy + time * speed_i));
+            Tangent.y +=  (Q[i] * pow(d.y,2.0) * amplitude[i] * freq_i * sin(freq_i * xy + time * speed_i));
+            Tangent.z += d.y * amplitude[i] * freq_i * cos(freq_i * xy + time * speed_i);
+            random_value += 1051.854521;
 
-          return p;
+          }
+          vec3 b_T = vec3(1.0 - biTangent.x, (-biTangent.y), biTangent.z); 
+          vec3 T = vec3((-Tangent.x), (1.0 - Tangent.y), Tangent.z);
+          Normal = cross(b_T, T);
+          return vec3(result.x + position.x, result.y + position.y, result.z);
       }
-      vec3 calcGerstnerWave(in float phase,in float wave_lenght , in float amplitude, in float time, in vec2 direction, in vec3 position, in float k, in float Q, out vec3 Normal) {
-        // Q = 0 normal sine, Q = 1/(W * A ) sharp crest
-          vec3 p = vec3(0.0);
-          float freq = 2.0/wave_lenght;
-          float speed = phase * freq; 
-          vec2 d = getDirection(direction, position);
-          float xy = d.x * position.x + d.y * position.y;
-          float x = (Q*amplitude * d.x * cos(freq * xy + time *speed));
-          float y = (Q*amplitude * d.y * cos(freq * xy + time *speed));
-          float z = sin( xy * freq + time * speed )* amplitude; 
 
-          p = vec3( x, y, z);
-          float d_p = d.x * p.x + d.y * p.y;
-          //Normal = vec3((d.x * freq * amplitude * cos(freq * xy * length(position) + time * speed)), ((d.y * freq * amplitude * cos(freq * xy * length(position) + time * speed))),(Q * freq * amplitude * sin(freq * xy * length(position) + time * speed)));
-          Normal = vec3((d.x * freq * amplitude * cos(freq * d_p + time * speed)), ((d.y * freq * amplitude * cos(freq * d_p + time * speed))),(Q * freq * amplitude * sin(freq * d_p + time * speed)));
-
-          return p;
-      }
 
        // source http://lolengine.net/blog/2013/09/21/picking-orthogonal-vector-combing-coconuts
       vec3 orthogonal(vec3 v) {
         return normalize(abs(v.x) > abs(v.z) ? vec3(-v.y, 0.0, v.x)
         : vec3(0.0, -v.z, v.y));
       }
+      vec3 fbm_Wave (in vec3 point, in float time, in float numberofOctaves) {
+        // Initial values
+        vec3 result = vec3(0.0);
+       // float amplitude = 1.0;
+        float A = 2.0;
+      
+       // ae^(maxsin(x)-min)
+        //a*maxe^{maxsin(x)-min}cos(x)
+        float frequency = 0.1;
+        float speed = 0.5;
+        vec3 position = point;
+        float random_value = 0.0;
+        float weight = 2.0;
+        
+        float test = 1.0;
+        float x = 0.0;
+        float phi = 0.0;
+        float d_phi = 0.0;
+        float drag = fbm_amplitude;
+        for (float i = 0.0; i < numberofOctaves; i++) {
+            
+            vec2 d = normalize(vec2(sin(random_value),cos(random_value)));
+              if(test == 1.0)
+              {
+                phi = A*sin(dot(d, position.xy) * frequency + time * speed );
+                d_phi = frequency * cos(dot(d, position.xy) * frequency + time * speed );
+              }
+              if(test == 2.0)
+              {
+                x = sin(dot(d, position.xy) * frequency + time * speed );
+                phi = A * exp(2.0 * x - 1.0);
+                d_phi = frequency * A * 2.0 * exp(2.0 * x - 1.0) * cos(x);
+              }
+            //float phi = sin(dot(d, point.xy) * frequency + time * speed );
+            //float d_phi = cos(dot(d, point.xy) * frequency + time * speed );
+            result.z += phi;
+            result.x += A * d_phi  * d.x;
+            result.y += A * d_phi  * d.y;
+            frequency *= 1.18;
+            //position.xy += vec2((-result.x*fbm_amplitude), (-result.y*fbm_amplitude));
+            speed += 0.0090;
+            
+            A *= 0.82;
+            random_value += 1051.854521;
+        }
+        return result/weight;
+    }
      
+
       void main() {
         vNormalMatrix = normalMatrix;
         //vec4 bumpData = texture2D( disTexture, uv );
@@ -201,7 +252,7 @@ function vertexShader() {
         //vec3 new_norm = vec3(0.0, 0.0, 0.0);
        // float wave_Displacement = 0.0;
         // if(smoothstep( -1000.0, -0.5, noise_Displacement ) - smoothstep( -0.16, -0.15, noise_Displacement )> noise_Displacement )
-        // {
+         //{
 
           // Displacement along y
           vec3 pos = position;
@@ -210,16 +261,17 @@ function vertexShader() {
           // speed,wave length , amplitude, time, direction, position
           float phase[4] = float[4](2.0, 5.0, 4.0, 3.0);
           float wave_lenght[4] = float[4](8.0, 5.0, 8.1, 6.0);
-          float amplitude[4] = float[4](1.0, 0.4, 0.8, 1.4);
+          float amplitude[4] = float[4](2.0, 0.4, 0.8, 1.4);
           vec2 direction[4] = vec2[4](vec2(90.0,30.0), vec2(70.0,30.0), vec2(160.0,70.0), vec2(90.0,30.0));
  
           float k[4] = float[4](1.2, 1.5, 1.0, 1.2);
-          float Q[4] = float[4](0.5, 0.8, 0.2, 0.4);
+          float Q[4] = float[4](1.0, 0.8, 0.1, 1.0);
           vec3 wave = vec3(0.0, 0.0, 0.0);
           vec3 newPos = vec3(0.0, 0.0, 0.0);
           vec3 biTangent = vec3(0.0, 0.0, 0.0);
           vec3 Tangent = vec3(0.0, 0.0, 0.0);
           vec3 new_Norm = vec3(0.0, 0.0, 0.0);
+          
           if(water_Model == 0)
           {
             
@@ -245,25 +297,39 @@ function vertexShader() {
             vNormal = normalize( normalMatrix* new_Norm);
             vPosition =  modelViewMatrix * vec4(newPos, 1.0);
             gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
+            
+
+
           }
           if(water_Model == 2)
           {
             //in float phase,in float wave_lenght , in float amplitude, in float time, in vec2 direction, in vec3 position, in int water_Model, in float k, in float Q, out vec3 Normal
-            vec3 newPos = vec3(0.0, 0.0, 0.0);
-            vec3 newNorm = vec3(0.0, 0.0, 0.0);
-            vec3 newNorm1 = vec3(0.0, 0.0, 0.0);
-            vec3 newNorm2 = vec3(0.0, 0.0, 0.0);
-            vec3 newNorm3 = vec3(0.0, 0.0, 0.0);
-            vec3 wave1 = calcGerstnerWave(2.0, 8.0, 1.0, time, vec2(90.0,30.0), pos, 2.5, 0.5, newNorm);
-            vec3 wave2 = calcGerstnerWave(5.0, 5.0, 0.4, time, vec2(70.0,30.0), pos, 1.5, 0.8, newNorm1);
-            vec3 wave3 = calcGerstnerWave(4.0, 8.1, 1.8, time, vec2(160.0,70.0), pos, 2.0, 0.2, newNorm2);
-            vec3 wave4 = calcGerstnerWave(3.0, 6.0, 2.4, time, vec2(90.0,30.0), pos, 1.2, 0.4, newNorm3);
-            vec3 p_Sum = wave1 + wave2 + wave3 + wave4;
-            newPos = vec3( pos.x + p_Sum.x, pos.y + p_Sum.y, p_Sum.z);
-            vec3 newNormal = newNorm + newNorm1 + newNorm2 + newNorm3;
-            newNormal = vec3(-newNormal.x, -newNormal.y, 1.0 - newNormal.z);
-            vNormal = normalize( normalMatrix* newNormal);
+
+            vec3 new_Norm = vec3(0.0, 0.0, 0.0);
+            vec3 wave = calcGerstnerWave(phase, wave_lenght, amplitude, time, direction, pos, k, Q, new_Norm);
+            new_Norm = normalize(new_Norm);
+            vNormal = normalize( normalMatrix* new_Norm);
+            vPosition =  modelViewMatrix * vec4(wave, 1.0);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(wave, 1.0);
+          }
+          if(water_Model == 3)
+          {
+            wave = fbm_Wave(pos,  time,  numberOfOctaves);
+            
+            biTangent = vec3(1.0, 0.0, wave.x);
+            Tangent = vec3(0.0 , 1.0, wave.y);
+            new_Norm = cross(biTangent, Tangent);
+            newPos = vec3(pos.x, pos.y, wave.z);
+            vNormal = normalize( normalMatrix* new_Norm);
+            vPosition =  modelViewMatrix * vec4(newPos, 1.0);
             gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
+          }
+          if(water_Model == 4)
+          {
+
+            vNormal = normalize( normalMatrix* normal);
+            vPosition =  modelViewMatrix * vec4(position, 1.0);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
           }
 
 
@@ -324,6 +390,19 @@ function fragmentShader() {
     return lightColor * spec;
 
   }
+  vec3 applyFog( in vec3  col,   // color of pixel
+               in float t,     // distance to point
+               in vec3  rd,    // camera to point
+               in vec3  lig )  // sun direction
+{
+    float b = 0.0001; // fog density
+    float fogAmount = 1.0 - exp(-t*b);
+    float sunAmount = max( dot(rd, lig), 0.0 );
+    vec3  fogColor  = mix( vec3(0.5,0.6,0.7), // blue
+                           vec3(1.0,0.9,0.7), // yellow
+                           pow(sunAmount,8.0) );
+    return mix( col, fogColor, fogAmount );
+}
     
     varying vec2 vUv;
     varying float noise;
@@ -334,6 +413,7 @@ function fragmentShader() {
     uniform float lighty;
     uniform float lightz;
     uniform float time;
+    uniform vec3 water_Color;
     //uniform vec3 cameraPosition;
 
     varying vec4 vPosition;
@@ -349,8 +429,8 @@ function fragmentShader() {
 
       mat4 rot_x = rotationX(90.0);
       float k_a = 0.2; //ambient
-      float k_d = 0.5; //diffuse
-      float k_s = 0.5; //specular
+      float k_d = 0.2; //diffuse
+      float k_s = 0.2; //specular
       vec3 lightColor = vec3(1.0, 1.0, 1.0); 
       vec3 n = normalize(vNormal); 
             
@@ -364,7 +444,7 @@ function fragmentShader() {
 
       
     
-      vec3 water = (smoothstep( -1000.0, -0.5, noise_Displacement ) - smoothstep( -0.16, -0.15, noise_Displacement ))  * vec3( 0.0, 0.0, 1.0 ) + calc_Spec(256.0, lightDir, cameraPos, pos, n)* k_s;
+      vec3 water = (smoothstep( -1000.0, -0.5, noise_Displacement ) - smoothstep( -0.16, -0.15, noise_Displacement ))  * water_Color + calc_Spec(256.0, lightDir, cameraPos, pos, n)* k_s;
       vec3 sand = (smoothstep( -1.0, 1.4, noise_Displacement ) - smoothstep( 1.2, 1.25, noise_Displacement ))  * vec3( 0.76, 0.7, 0.5 );
       vec3 grass = (smoothstep( -1.2, 8.0, noise_Displacement ) - smoothstep( 09.8, 10.3, noise_Displacement ))  * vec3( 0.0, 0.7, 0.1 );
       vec3 rock = (smoothstep( 8.10, 16.0, noise_Displacement ) - smoothstep( 15.80, 16.22, noise_Displacement ))  * vec3( 0.38, 0.33, 0.28 );
@@ -372,11 +452,19 @@ function fragmentShader() {
       
      
 
-     vec3 groundColor = vec3( 0.0, 0.0, 1.0 ) + calc_Spec(256.0, lightDir, cameraPos, pos, n)* k_s;//vec3( water + sand + grass + rock  + snow);
+     vec3 groundColor = water_Color + calc_Spec(256.0, lightDir, cameraPos, pos, n)* k_s;//vec3( water + sand + grass + rock  + snow);
+     //vec3 groundColor = vec3(water + sand + grass + rock  + snow);
+
      vec3 diffuseLight = groundColor * NdotL;
     // vec3 groundSpecular = groundColor * spec;
    //  gl_FragColor = vec4(normalize(vNormal),1.0);//vec4((water + sand + grass + rock  + snow) *diffuseLight, 1.0);
       vec3 finalColor =  k_a * groundColor + k_d * diffuseLight;
+      
+      //fog    // color of pixel// distance to point// camera to point// sun direction
+
+      vec3 fogColor = applyFog(finalColor, length(pos - cameraPos), normalize(cameraPos - pos), lightDir);
+      // gamma correction
+     finalColor = pow( finalColor, vec3(1.0/2.2) );
      gl_FragColor = vec4(finalColor, 1.0);
 
 
@@ -390,16 +478,20 @@ function fragmentShader() {
 function updateWater() {
   switch (planeControls.water_Controler) {
       case 'Sum of sines':
-        console.log('Sum of sines');
+        //console.log('Sum of sines');
         return 0;
           break;
       case 'None negative sum of sine':
-        console.log('None negative sum of sine');
+        //console.log('None negative sum of sine');
         return 1;
           break;
-      case 'Perlin_Noise_3D':
-        console.log('Perlin_Noise_3D');
+      case 'Gestner_wave':
+        //console.log('Gestner_wave');
         return 2;
+          break;
+      case 'FBM_wave':
+        //console.log('FBM_wave');
+        return 3;
           break;
   }
 }
@@ -437,18 +529,25 @@ var container,
 
   
   }
-  
+
+ 
+
   // grab the container from the DOM
-  container = document.getElementById( "container" );
+  
 
   
   // create a scene
   scene = new THREE.Scene();
-  
+ 
   renderer = new THREE.WebGLRenderer();
   renderer.setPixelRatio( window.devicePixelRatio );
   renderer.setSize( window.innerWidth, window.innerHeight );
-  this.document.body.appendChild( renderer.domElement );
+  const html_Container = document.getElementById('container');
+  //FPS counter
+  var stats = new Stats()
+  stats.showPanel(0);
+  html_Container.appendChild(stats.domElement)
+  html_Container.appendChild( renderer.domElement );
   // create a camera the size of the browser window
   // and place it 100 units away, looking towards the center of the scene
   camera = new THREE.PerspectiveCamera(
@@ -457,7 +556,11 @@ var container,
     1,
     10000
   );
- 
+  // Skybox texture loader
+  const loader = new THREE.CubeTextureLoader();
+  loader.setPath( '/Skybox/allsky/' );
+  const cube_Texture = loader.load( ['px.png', 'nx.png', 'py.png', 'ny.png', 'pz.png', 'nz.png'] );
+  scene.background = cube_Texture;
   controls = new THREE.OrbitControls( camera, renderer.domElement );
   camera.position.set( 10,1000 , 1000 );
   
@@ -467,7 +570,7 @@ var container,
   // create material and bump/hightmap texture
   
  // const disMap = new THREE.TextureLoader().load('http://127.0.0.1:5500/Images/hmap.jpg');
-  
+ 
   var uniforms = { 
         
     time: { // float initialized to 0
@@ -487,7 +590,7 @@ var container,
     
 
   };
-  var water_Color = new THREE.Vector3(0.0, 0.0, 1.0);
+ 
   uniforms[ 'time' ].value =  ( Date.now() - start );
   // console.log(uniforms)
   // const groundMaterial = new THREE.MeshStandardMaterial({
@@ -548,9 +651,10 @@ scene.add( light_Sphere );
   renderer.setSize( window.innerWidth, window.innerHeight );
   renderer.setPixelRatio( window.devicePixelRatio );
 
-  container.appendChild( renderer.domElement );
+  
   const cameraVizu= new THREE.CameraHelper( camera );
   scene.add( cameraVizu ); 
+
 
   //Create new gui
   const gui = new dat.GUI();
@@ -581,9 +685,36 @@ const cube = new THREE.Mesh(geometry, cubeMat)
   cubeFolder.add(planeControls, 'lightz', -1000, 1000)
   cubeFolder.open()
   //Water
+
+  const params = {color: '#0000FF'};
+
+// This vector will store the RGB components
+const rgbVector = new THREE.Vector3();
+
+// Function to update the vector with the new color
+function updateColorVector(hexColor) {
+    // Create a new THREE.Color object from the hex value
+    const color = new THREE.Color(hexColor);
+    
+    // Convert color components to [0, 255] and update the vector
+    uniforms.water_Color.value.set(color.r , color.g , color.b);
+
+}  
+
+
   const waterFolder = gui.addFolder('Water')
-  //waterFolder.addColor(uniforms, 'x').name('water_Color')
-  waterFolder.add(planeControls, 'water_Controler',['Sum of sines', 'None negative sum of sine', 'Perlin_Noise_3D']).listen();
+// Add a color controller to the GUI and listen for changes
+waterFolder.addColor(params, 'color').onChange(function(newValue) {
+  // newValue is the new color value as a hex string, e.g., '#ffae23'
+  updateColorVector(newValue);
+});
+waterFolder.add( planeControls, 'numberOfOctaves', 0, 32 ).name( 'Octaves' ).listen();
+
+  waterFolder.add(planeControls, 'water_Controler',['Sum of sines', 'None negative sum of sine', 'Gestner_wave', 'FBM_wave']).listen();
+  var conf = new THREE.Color('0xff0000 ');
+
+  
+
   waterFolder.open()
 
 
@@ -608,7 +739,7 @@ function animate() {
   //planeValues.heightSeg = planeControls.Height;
   uniforms.disScale.value = planeControls.displacement;
   uniforms.frequency.value = planeControls.frequency;
-  uniforms.fbm_amplitude.value = planeControls.amplitude;
+  //uniforms.fbm_amplitude.value = planeControls.fbm_amplitude;
   uniforms.numberOfOctaves.value = planeControls.numberOfOctaves;
   uniforms.lightx.value = planeControls.lightx;
   uniforms.lighty.value = planeControls.lighty;
@@ -616,6 +747,8 @@ function animate() {
   light_Sphere.position.set(planeControls.lightx, planeControls.lighty, planeControls.lightz);
   //console.log(uniforms.water_Model);
   uniforms.water_Model.value = updateWater();
+  
+  stats.update();
   
   
 
@@ -626,8 +759,9 @@ function animate() {
 }
 function render() {
   material.uniforms[ 'time' ].value = .005 * ( Date.now() - start );
+  stats.begin();
   renderer.render( scene, camera );
-  
+  stats.end();
 
 }
 animate();
