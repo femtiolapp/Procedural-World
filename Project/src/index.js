@@ -1,5 +1,6 @@
 
 
+
 function vertexShader() {
   return `
 
@@ -201,7 +202,7 @@ function vertexShader() {
         float x = 0.0;
         float phi = 0.0;
         float d_phi = 0.0;
-        float drag = fbm_amplitude;
+        float drag = 0.5;
         for (float i = 0.0; i < numberofOctaves; i++) {
             
             vec2 d = normalize(vec2(sin(random_value),cos(random_value)));
@@ -222,7 +223,7 @@ function vertexShader() {
             result.x += A * d_phi  * d.x;
             result.y += A * d_phi  * d.y;
             frequency *= 1.18;
-            //position.xy += vec2((-result.x*fbm_amplitude), (-result.y*fbm_amplitude));
+            //position.xy += vec2((-result.x), (-result.y))*0.1;
             speed += 0.0090;
             
             A *= 0.82;
@@ -414,6 +415,7 @@ function fragmentShader() {
     uniform float lightz;
     uniform float time;
     uniform vec3 water_Color;
+    uniform samplerCube cube_Texture;
     //uniform vec3 cameraPosition;
 
     varying vec4 vPosition;
@@ -429,8 +431,8 @@ function fragmentShader() {
 
       mat4 rot_x = rotationX(90.0);
       float k_a = 0.2; //ambient
-      float k_d = 0.2; //diffuse
-      float k_s = 0.2; //specular
+      float k_d = 0.3; //diffuse
+      float k_s = 0.4; //specular
       vec3 lightColor = vec3(1.0, 1.0, 1.0); 
       vec3 n = normalize(vNormal); 
             
@@ -441,7 +443,13 @@ function fragmentShader() {
       vec4 vcameraPos = viewMatrix * vec4(cameraPosition,1.0);
       vec3 cameraPos = vcameraPos.xyz;
       float NdotL = dot(lightDir, n);
+      //Background reflection
+      vec4 ref_pos = viewMatrix * vec4(pos, 1.0);
+      vec3 reflectDir = normalize(ref_pos.xyz - cameraPos);
 
+
+
+      vec3 test = textureCube(cube_Texture,reflectDir).rgb;
       
     
       vec3 water = (smoothstep( -1000.0, -0.5, noise_Displacement ) - smoothstep( -0.16, -0.15, noise_Displacement ))  * water_Color + calc_Spec(256.0, lightDir, cameraPos, pos, n)* k_s;
@@ -455,7 +463,7 @@ function fragmentShader() {
      vec3 groundColor = water_Color + calc_Spec(256.0, lightDir, cameraPos, pos, n)* k_s;//vec3( water + sand + grass + rock  + snow);
      //vec3 groundColor = vec3(water + sand + grass + rock  + snow);
 
-     vec3 diffuseLight = groundColor * NdotL;
+     vec3 diffuseLight = water_Color * NdotL;
     // vec3 groundSpecular = groundColor * spec;
    //  gl_FragColor = vec4(normalize(vNormal),1.0);//vec4((water + sand + grass + rock  + snow) *diffuseLight, 1.0);
       vec3 finalColor =  k_a * groundColor + k_d * diffuseLight;
@@ -465,6 +473,7 @@ function fragmentShader() {
       vec3 fogColor = applyFog(finalColor, length(pos - cameraPos), normalize(cameraPos - pos), lightDir);
       // gamma correction
      finalColor = pow( finalColor, vec3(1.0/2.2) );
+     finalColor = finalColor + test * 0.1;
      gl_FragColor = vec4(finalColor, 1.0);
 
 
@@ -559,11 +568,11 @@ var container,
   // Skybox texture loader
   const loader = new THREE.CubeTextureLoader();
   loader.setPath( '/Skybox/allsky/' );
-  const cube_Texture = loader.load( ['px.png', 'nx.png', 'py.png', 'ny.png', 'pz.png', 'nz.png'] );
+  const cube_Texture = loader.load( ['px.png', 'nx.png', 'py.png', 'ny.png', 'nz.png', 'pz.png'] );
   scene.background = cube_Texture;
   controls = new THREE.OrbitControls( camera, renderer.domElement );
   camera.position.set( 10,1000 , 1000 );
-  
+  //var test = cube_Texture(cube_Texture, new THREE.Vector3(0,0,0));
   //camera.rotateX(-Math.PI/2)
   camera.lookAt( 0,0,0 );
 
@@ -585,7 +594,8 @@ var container,
     lighty: {value: 100.0},
     lightz: {value: 0.0},
     water_Color: {value: new THREE.Vector3(0.0, 0.0, 1.0)},
-    water_Model: {value: 0}
+    water_Model: {value: 0},
+    cube_Texture: { value: cube_Texture }
     
     
 
