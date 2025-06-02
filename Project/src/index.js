@@ -415,6 +415,8 @@ function fragmentShader() {
     uniform float lightz;
     uniform float time;
     uniform vec3 water_Color;
+    uniform vec3 diffuse_water_Color;
+
     uniform samplerCube cube_Texture;
     //uniform vec3 cameraPosition;
 
@@ -595,7 +597,8 @@ var container,
     lightz: {value: 0.0},
     water_Color: {value: new THREE.Vector3(0.0, 0.0, 1.0)},
     water_Model: {value: 0},
-    cube_Texture: { value: cube_Texture }
+    cube_Texture: { value: cube_Texture },
+    diffuse_water_Color: {value: new THREE.Vector3(0.0, 0.0, 1.0)},
     
     
 
@@ -696,27 +699,34 @@ const cube = new THREE.Mesh(geometry, cubeMat)
   cubeFolder.open()
   //Water
 
-  const params = {color: '#0000FF'};
+  const params = {color: [0.0, 0.0, 1.0]};
 
 // This vector will store the RGB components
 const rgbVector = new THREE.Vector3();
 
-// Function to update the vector with the new color
-function updateColorVector(hexColor) {
-    // Create a new THREE.Color object from the hex value
-    const color = new THREE.Color(hexColor);
+// // Function to update the vector with the new color
+// function updateColorVector(hexColor) {
+//     // Create a new THREE.Color object from the hex value
+//     const color = new THREE.Color(hexColor);
     
-    // Convert color components to [0, 255] and update the vector
-    uniforms.water_Color.value.set(color.r , color.g , color.b);
+//     // Convert color components to [0, 255] and update the vector
+//     uniforms.water_Color.value.set(color.r , color.g , color.b);
 
-}  
+// }  
 
 
   const waterFolder = gui.addFolder('Water')
 // Add a color controller to the GUI and listen for changes
 waterFolder.addColor(params, 'color').onChange(function(newValue) {
   // newValue is the new color value as a hex string, e.g., '#ffae23'
-  updateColorVector(newValue);
+  water_Color.value.set(newValue);
+  
+});
+// Add a color controller to the GUI and listen for changes
+waterFolder.addColor(params, 'color').onChange(function(newValue) {
+  // newValue is the new color value as a hex string, e.g., '#ffae23'
+  water_Color.value.set(newValue);
+  
 });
 waterFolder.add( planeControls, 'numberOfOctaves', 0, 32 ).name( 'Octaves' ).listen();
 
