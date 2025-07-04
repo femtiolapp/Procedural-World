@@ -15,7 +15,9 @@ import fragmentShader from './shaders/fragmentShader.glsl?raw';
 
 // Create the vertexshader with the noise functions in the begginning
 const vertexshader = classic3DNoise + '\n' + classicPerlinNoise + '\n' + vertexShader;
-
+const loader = new THREE.CubeTextureLoader();
+loader.setPath('/Skybox/allsky/');
+const cube_Texture = loader.load(['px.png', 'nx.png', 'py.png', 'ny.png', 'nz.png', 'pz.png']);
 
 function updateWater() {
   switch (planeControls.water_Controler) {
@@ -66,13 +68,41 @@ var planeControls = {
   fbm_amplitude: 1.0,
   numberOfOctaves: 5.0,
   lightx: 0.0,
-  lighty: 100.0,
-  lightz: 0.0,
-  water_Controler: 'None negative sum of sine'
+  lighty: 113.0,
+  lightz: -217.0,
+  water_Controler: 'Sum of sines',
+  uMedianAmplitude: 1.0,
+  uMedianWavelength: 15.0,
+  uWinddirection: 1.0,
 
 
 }
 
+var uniforms = {
+
+  time: { // float initialized to 0
+    type: "f",
+    value: 0.0
+  },
+  disScale: { value: 100.0 },
+  frequency: { value: 2.0 },
+  fbm_amplitude: { value: 1.0 },
+  numberOfOctaves: { value: 5.0 },
+  time: { value: 0.0 },
+  lightx: { value: 0.0 },
+  lighty: { value: 100.0 },
+  lightz: { value: 0.0 },
+  water_Color: { value: new THREE.Vector3(0.0, 0.0, 1.0) },
+  water_Model: { value: 0 },
+  cube_Texture: { value: cube_Texture },
+  diffuse_water_Color: { value: new THREE.Vector3(0.0, 0.0, 1.0) },
+  uMedianAmplitude: {value: 1.0},
+  uMedianWavelength: {value: 15.0},
+  uWinddirection: {value: 0.0},
+
+
+
+};
 
 
 // grab the container from the DOM
@@ -100,9 +130,7 @@ camera = new THREE.PerspectiveCamera(
   10000
 );
 // Skybox texture loader
-const loader = new THREE.CubeTextureLoader();
-loader.setPath('/Skybox/allsky/');
-const cube_Texture = loader.load(['px.png', 'nx.png', 'py.png', 'ny.png', 'nz.png', 'pz.png']);
+
 scene.background = cube_Texture;
 controls = new OrbitControls(camera, renderer.domElement);
 camera.position.set(10, 1000, 1000);
@@ -114,28 +142,6 @@ camera.lookAt(0, 0, 0);
 
 // const disMap = new THREE.TextureLoader().load('http://127.0.0.1:5500/Images/hmap.jpg');
 
-var uniforms = {
-
-  time: { // float initialized to 0
-    type: "f",
-    value: 0.0
-  },
-  disScale: { value: 100.0 },
-  frequency: { value: 2.0 },
-  fbm_amplitude: { value: 1.0 },
-  numberOfOctaves: { value: 5.0 },
-  time: { value: 0.0 },
-  lightx: { value: 0.0 },
-  lighty: { value: 100.0 },
-  lightz: { value: 0.0 },
-  water_Color: { value: new THREE.Vector3(0.0, 0.0, 1.0) },
-  water_Model: { value: 0 },
-  cube_Texture: { value: cube_Texture },
-  diffuse_water_Color: { value: new THREE.Vector3(0.0, 0.0, 1.0) },
-
-
-
-};
 
 uniforms['time'].value = (Date.now() - start);
 // console.log(uniforms)
@@ -271,7 +277,9 @@ waterFolder.addColor(params, 'diffuse_color').onChange(function () {
 
 
 waterFolder.add(planeControls, 'numberOfOctaves', 0, 32).name('Octaves').listen();
-
+waterFolder.add(planeControls, 'uMedianAmplitude', 1, 10).name('medianAmp').listen();
+waterFolder.add(planeControls, 'uMedianWavelength', 1, 50).name('medianWavelength').listen();
+waterFolder.add(planeControls, 'uWinddirection', 0, 360).name('winddirection').listen();
 waterFolder.add(planeControls, 'water_Controler', ['Sum of sines', 'None negative sum of sine', 'Gestner_wave', 'FBM_wave']).listen();
 var conf = new THREE.Color('0xff0000 ');
 
@@ -303,6 +311,9 @@ function animate() {
   uniforms.frequency.value = planeControls.frequency;
   //uniforms.fbm_amplitude.value = planeControls.fbm_amplitude;
   uniforms.numberOfOctaves.value = planeControls.numberOfOctaves;
+  uniforms.uMedianAmplitude.value = planeControls.uMedianAmplitude;
+  uniforms.uMedianWavelength.value = planeControls.uMedianWavelength;
+  uniforms.uWinddirection.value = planeControls.uWinddirection;
   uniforms.lightx.value = planeControls.lightx;
   uniforms.lighty.value = planeControls.lighty;
   uniforms.lightz.value = planeControls.lightz;
