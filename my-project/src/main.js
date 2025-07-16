@@ -10,15 +10,27 @@ import * as dat from 'dat.gui';
 import Stats from 'stats.js';
 
 import {classic3DNoise, classicPerlinNoise} from './Noise/Stegu_Noise.glsl.js'
-import vertexShader from './shaders/vertexShader.glsl?raw';
-import fragmentShader from './shaders/fragmentShader.glsl?raw';
+import waterVertexShader from './shaders/waterVertexShader.glsl?raw';
+import waterFragmentShader from './shaders/waterFragmentShader.glsl?raw';
+import skyBoxVertexShader from './shaders/skyBoxvertexShader.glsl?raw';
+import skyBoxFragmentShader from './shaders/skyBoxfragmentShader.glsl?raw';
 
 // Create the vertexshader with the noise functions in the begginning
-const vertexshader = classic3DNoise + '\n' + classicPerlinNoise + '\n' + vertexShader;
+const waterVertex = classic3DNoise + '\n' + classicPerlinNoise + '\n' + waterVertexShader;
 const loader = new THREE.CubeTextureLoader();
 loader.setPath('/Skybox/allsky/');
 const cube_Texture = loader.load(['px.png', 'nx.png', 'py.png', 'ny.png', 'nz.png', 'pz.png']);
-
+const skyCube = new THREE.BoxGeometry(10000,10000,10000);
+const skyBoxMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    cubeTexture: {value: cube_Texture}, 
+    sunDirection: {value: new THREE.Vector3(0.0, 0.0, -1.0)},
+  },
+  vertexShader: skyBoxVertexShader,
+  fragmentShader: skyBoxFragmentShader,
+  side: THREE.BackSide,
+}); 
+const skyBox = new THREE.Mesh(skyCube, skyBoxMaterial); 
 function updateWater() {
   switch (planeControls.water_Controler) {
     case 'Sum of sines':
@@ -131,7 +143,7 @@ camera = new THREE.PerspectiveCamera(
 );
 // Skybox texture loader
 
-scene.background = cube_Texture;
+scene.add(skyBox);
 controls = new OrbitControls(camera, renderer.domElement);
 camera.position.set(10, 1000, 1000);
 //var test = cube_Texture(cube_Texture, new THREE.Vector3(0,0,0));
@@ -155,8 +167,8 @@ uniforms['time'].value = (Date.now() - start);
 const material = new THREE.ShaderMaterial({
   uniforms: uniforms,
   wireframe: false,
-  vertexShader: vertexshader,
-  fragmentShader: fragmentShader,
+  vertexShader: waterVertex,
+  fragmentShader: waterFragmentShader,
   lights: false,
 
 });
@@ -320,7 +332,7 @@ function animate() {
   light_Sphere.position.set(planeControls.lightx, planeControls.lighty, planeControls.lightz);
   //console.log(uniforms.water_Model);
   uniforms.water_Model.value = updateWater();
-
+  
   stats.update();
 
 
