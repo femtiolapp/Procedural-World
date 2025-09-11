@@ -28,6 +28,10 @@ uniform int water_Model;
 uniform float uMedianAmplitude;
 uniform float uMedianWavelength;
 uniform float uWinddirection;
+uniform float uFBMfrequency;
+uniform float uFBMAmplitude;
+uniform float uFBMPersistence;
+uniform float uWavesLacunarity;
 varying float noise_Displacement;
 
 varying float vAmount;
@@ -205,7 +209,7 @@ vec3 fbm_Wave(in vec3 point, in float time, in float numberofOctaves) {
   vec3 result = vec3(0.0);
 
   float A = 1.1;
-
+  
   float frequency = 0.1;
   float speed = 0.5;
   vec3 position = point;
@@ -228,7 +232,7 @@ vec3 fbm_Wave(in vec3 point, in float time, in float numberofOctaves) {
     result.x += A * d_phi * d.x;
     result.y += A * d_phi * d.y;
 
-    position.xy += vec2((-result.x), (-result.y)) * 0.2;
+    position.xy += vec2((-result.x), (-result.y)) * 0.5;
     speed *= 0.090;
     weight += A;
     A *= 0.82;
@@ -299,8 +303,8 @@ void main() {
     vec3 grad = vec3(-wave.x, -wave.y, 1.0);
     new_Norm = normalize(grad);
     newPos = vec3(pos.x, pos.y, wave.z);
-    vNormal = normalize(normalMatrix * new_Norm);
-    vPosition = modelViewMatrix * vec4(newPos, 1.0);
+    vNormal = normalize(mat3(modelMatrix) * new_Norm);
+    vPosition = modelMatrix * vec4(newPos, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
   } else if(water_Model == 1) {
 
@@ -310,8 +314,8 @@ void main() {
     Tangent = vec3(0.0, 1.0, wave.y);
     new_Norm = cross(biTangent, Tangent);
     newPos = vec3(pos.x, pos.y, pos.z + wave.z - 3.5);
-    vNormal = normalize(normalMatrix * new_Norm);
-    vPosition = modelViewMatrix * vec4(newPos, 1.0);
+    vNormal = normalize(mat3(modelMatrix) * new_Norm);
+    vPosition = modelMatrix * vec4(newPos, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
 
   }
@@ -321,8 +325,8 @@ void main() {
     vec3 new_Norm = vec3(0.0, 0.0, 0.0);
     vec3 wave = calcGerstnerWave(ranWaves, time, pos, new_Norm);
     new_Norm = normalize(new_Norm);
-    vNormal = normalize(normalMatrix * new_Norm);
-    vPosition = modelViewMatrix * vec4(wave, 1.0);
+    vNormal = normalize(mat3(modelMatrix) * new_Norm);
+    vPosition = modelMatrix * vec4(wave, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(wave, 1.0);
   }
   if(water_Model == 3) {
@@ -337,14 +341,14 @@ void main() {
     vec3 bitangent = normalize(vec3(0.0, 2.0 * eps, dy.z));
     vec3 new_Norm = normalize(cross(tangent, bitangent));
     newPos = vec3(pos.x, pos.y, pos.z + wave.z);
-    vNormal = normalize(normalMatrix * new_Norm);
-    vPosition = modelViewMatrix * vec4(newPos, 1.0);
+    vNormal = normalize(mat3(modelMatrix) * new_Norm);
+    vPosition = modelMatrix  * vec4(newPos, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
   }
   if(water_Model == 4) {
 
-    vNormal = normalize(normalMatrix * normal);
-    vPosition = modelViewMatrix * vec4(position, 1.0);
+    vNormal = normalize(mat3(modelMatrix) * normal);
+    vPosition = modelMatrix  * vec4(position, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 
