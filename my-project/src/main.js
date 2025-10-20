@@ -8,7 +8,10 @@ import waterVertexShader from './shaders/waterVertexShader.glsl?raw';
 import waterFragmentShader from './shaders/waterFragmentShader.glsl?raw';
 import skyBoxVertexShader from './shaders/skyBoxvertexShader.glsl?raw';
 import skyBoxFragmentShader from './shaders/skyBoxfragmentShader.glsl?raw';
-
+import philipsFragmentshader from './shaders/philipsFragmentshader.glsl?raw';
+import philipsVertexhader from './shaders/philipsVertexshader.glsl?raw';
+import fft_passfrag from './shaders/fft_passfrag.glsl?raw';
+import createFFT from 'glsl-fft';
 import { createSpectrum } from './waveSpectrum.js';
 
 // Declare global variables
@@ -23,6 +26,10 @@ camera.position.set(10, 1000, 1000);
 camera.lookAt(0, 0, 0);
 
 scene = new THREE.Scene();
+
+
+
+
 
 // Load skybox texture
 const loader = new THREE.CubeTextureLoader();
@@ -63,8 +70,8 @@ const waterUniforms = {
 
 // Plane and GUI control settings
 const planeControls = {
-  width: 100,
-  height: 200,
+  width: 3000,
+  height: 3000,
   displacement: 28.0,
   frequency: 2.0,
   fbm_amplitude: 1.0,
@@ -80,6 +87,38 @@ const planeControls = {
   fogBottom: -10.0
 };
 
+
+//Create the philips spectrum
+const philipsTexture = new THREE.DataTexture(createSpectrum(1.0,256 , 31 ));
+console.log(philipsTexture);
+//Calculate conjugate over time in a fragment shader.
+
+// uniform sampler2D h0Spectrum; // xy = h0(k), zw = h0(-k)
+
+// uniform float uTime;
+// uniform float uGravity;
+// uniform float uSize;
+// uniform float uplaneSize;
+
+const philipsUniforms = {
+    uTime: {value: waterUniforms.time},
+    uGravity : {value: 9.82},
+    uSize: {value: planeControls.width},
+    h0Spectrum: {value: philipsTexture}
+  };
+
+const philipsMaterial = new THREE.ShaderMaterial({
+  uniforms: philipsUniforms,
+  vertexShader: philipsVertexhader,
+  fragmentShader: philipsFragmentshader,
+});
+const placeHolderplane = new THREE.PlaneGeometry(2,2);
+const placeholderObject = new THREE.Mesh(placeHolderplane, philipsMaterial);
+const philipRender = new THREE.WebGLRenderTarget(256,256);
+const philipsCamera = new THREE.OrthographicCamera;
+fft = new createFFT(256, renderer, philipsCamera, scene);
+scene.add(placeholderObject);
+placeholderObject.visible  = false;
 // Background material setup
 const bgMaterial = new THREE.ShaderMaterial({
   uniforms: skyUniforms,
@@ -107,7 +146,7 @@ const material = new THREE.ShaderMaterial({
   lights: false
 });
 
-const ground = new THREE.PlaneGeometry(3000, 3000, 256, 256);
+const ground = new THREE.PlaneGeometry(planeControls.width, planeControls.height, 256, 256);
 groundMesh = new THREE.Mesh(ground, material);
 groundMesh.rotation.x = -Math.PI / 2;
 groundMesh.position.set(0, 0, 0);
@@ -188,8 +227,7 @@ waterFolder.add(planeControls, 'fogBottom', -20, 100).name('Fog Bottom').listen(
 waterFolder.open();
 
 
-const [spectrum, gaussianRandom] = createSpectrum(1.0,256 , 31 );
-console.log(gaussianRandom);
+
 function updateWater() {
   switch (planeControls.water_Controler) {
     case 'Sum of sines': return 0;
@@ -223,11 +261,18 @@ function animate() {
   waterUniforms.water_Model.value = updateWater();
   light_Sphere.position.set(planeControls.lightx, planeControls.lighty, planeControls.lightz);
 
-  //renderer.setRenderTarget(bgRenderTarget);
+  placeholderObject.material = philipsMaterial;
+  placeholderObject.visible = true;
+
+  renderer.setRenderTarget(philipRender);
+  renderer.render(scene, philipsCamera );
+
+
+  renderer.setRenderTarget(null);
   //renderer.render(bgScene, bgCamera);
   //renderer.setRenderTarget(null);
 
-
+  placeholderObject.visible = false;
   renderer.render(scene, camera);
 
   stats.end();
