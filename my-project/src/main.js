@@ -11,11 +11,14 @@ import skyBoxFragmentShader from './shaders/skyBoxfragmentShader.glsl?raw';
 import philipsFragmentshader from './shaders/philipsFragmentshader.glsl?raw';
 import philipsVertexhader from './shaders/philipsVertexshader.glsl?raw';
 import fft_passfrag from './shaders/fft_passfrag.glsl?raw';
-import createFFT from 'glsl-fft';
+import fft_passvertex from './shaders/fft_passvertex.glsl?raw';
+import FFT_Function from "glsl-fft/index.glsl?raw";
+import fft from 'glsl-fft';
 import { createSpectrum } from './waveSpectrum.js';
 
 // Declare global variables
 let container, controls, renderer, scene, camera, mesh, groundMesh;
+const FFT_SIZE = 256;
 let stats, helper, bbox;
 const start = Date.now();
 const fov = 30;
@@ -70,8 +73,8 @@ const waterUniforms = {
 
 // Plane and GUI control settings
 const planeControls = {
-  width: 3000,
-  height: 3000,
+  width: FFT_SIZE,
+  height: FFT_SIZE,
   displacement: 28.0,
   frequency: 2.0,
   fbm_amplitude: 1.0,
@@ -88,9 +91,7 @@ const planeControls = {
 };
 
 
-//Create the philips spectrum
-const philipsTexture = new THREE.DataTexture(createSpectrum(1.0,256 , 31 ));
-console.log(philipsTexture);
+
 //Calculate conjugate over time in a fragment shader.
 
 // uniform sampler2D h0Spectrum; // xy = h0(k), zw = h0(-k)
@@ -99,26 +100,77 @@ console.log(philipsTexture);
 // uniform float uGravity;
 // uniform float uSize;
 // uniform float uplaneSize;
-
+//Create the philips spectrum
+const philipsTexture = new THREE.DataTexture(createSpectrum(1.0, 256, 31));
+console.log(philipsTexture);
 const philipsUniforms = {
-    uTime: {value: waterUniforms.time},
-    uGravity : {value: 9.82},
-    uSize: {value: planeControls.width},
-    h0Spectrum: {value: philipsTexture}
-  };
+  uTime: { value: waterUniforms.time },
+  uGravity: { value: 9.82 },
+  uSize: { value: planeControls.width },
+  h0Spectrum: { value: philipsTexture }
+};
 
 const philipsMaterial = new THREE.ShaderMaterial({
   uniforms: philipsUniforms,
   vertexShader: philipsVertexhader,
   fragmentShader: philipsFragmentshader,
 });
-const placeHolderplane = new THREE.PlaneGeometry(2,2);
+
+const rtOptions = {
+  minFilter: THREE.NearestFilter,
+  magFilter: THREE.NearestFilter,
+  wrapS: THREE.RepeatWrapping,
+  wrapT: THREE.RepeatWrapping,
+  format: THREE.RGBAFormat,
+  type: THREE.FloatType,
+};
+const placeHolderplane = new THREE.PlaneGeometry(2, 2);
 const placeholderObject = new THREE.Mesh(placeHolderplane, philipsMaterial);
-const philipRender = new THREE.WebGLRenderTarget(256,256);
-const philipsCamera = new THREE.OrthographicCamera;
-fft = new createFFT(256, renderer, philipsCamera, scene);
+const philipRender = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
+const philipsCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
 scene.add(placeholderObject);
-placeholderObject.visible  = false;
+
+const fft_passfrag_code = fft_passfrag.replace('#pragma glslify: fft = require(glsl-fft);',FFT_Function);
+
+placeholderObject.visible = false;
+const fftMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    src: { value: null },
+    resolution: { value: new THREE.Vector2(1 / FFT_SIZE, 1 / FFT_SIZE) },
+    subtransformSize: { value: 0 },
+    horizontal: { value: false },
+    forward: { value: false },
+    normalization: { value: 0 }
+  },
+  vertexShader: fft_passvertex,
+  fragmentShader: fft_passfrag_code,
+});
+//const passes = fft({256.0, 256.0, philipRender, philipsCamera, false });
+// Identifiers for your three.js render targets
+const INPUT_ID = 'philipRender';
+const PING_ID = 'fft_ping';
+const PONG_ID = 'fft_ping';
+const OUTPUT_ID = 'height_dx';
+
+// 1. Generate the pass list
+//const fft = require('glsl-fft');
+const passes = new fft({
+  width: FFT_SIZE,
+  height: FFT_SIZE,
+  input: INPUT_ID,
+  ping: PING_ID,
+  pong: PONG_ID,
+  output: OUTPUT_ID,
+  forward: false, // or false for inverse transform
+  splitNormalization: true // Recommended for half-float textures
+});
+const renderTargets = {
+  [PING_ID]: new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions),
+  [PONG_ID]: new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions),
+  [OUTPUT_ID]: new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions),
+};
+
 // Background material setup
 const bgMaterial = new THREE.ShaderMaterial({
   uniforms: skyUniforms,
@@ -261,11 +313,11 @@ function animate() {
   waterUniforms.water_Model.value = updateWater();
   light_Sphere.position.set(planeControls.lightx, planeControls.lighty, planeControls.lightz);
 
-  placeholderObject.material = philipsMaterial;
+  placeholderObject.material = fftMaterial;
   placeholderObject.visible = true;
 
   renderer.setRenderTarget(philipRender);
-  renderer.render(scene, philipsCamera );
+  renderer.render(scene, philipsCamera);
 
 
   renderer.setRenderTarget(null);
