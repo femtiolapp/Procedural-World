@@ -1,7 +1,7 @@
-vec3 calc_Spec(float shine, vec3 lightDir, vec3 cameraPosition , vec3 pos, vec3 n, vec3 viewDir) {
-  vec3 lightColor = vec3(1.0, 1.0, 1.0); 
+vec3 calc_Spec(float shine, vec3 lightDir, vec3 cameraPosition, vec3 pos, vec3 n, vec3 viewDir) {
+  vec3 lightColor = vec3(1.0, 1.0, 1.0);
   vec3 halfwayDir = normalize(lightDir + viewDir);
-  float spec = pow(max(dot(n,halfwayDir), 0.0), shine);
+  float spec = pow(max(dot(n, halfwayDir), 0.0), shine);
   return lightColor * spec;
 }
 
@@ -22,6 +22,7 @@ uniform float lightx;
 uniform float lighty;
 uniform float lightz;
 
+uniform sampler2D waterTexture;
 uniform float time;
 uniform vec3 water_Color;
 uniform vec3 diffuse_water_Color;
@@ -38,33 +39,32 @@ void main() {
   float k_a = 0.4;
   float k_d = 0.3;
   float k_s = 0.9;
-  vec3 lightColor = vec3(1.0, 0.9, 0.6); 
+  vec3 lightColor = vec3(1.0, 0.9, 0.6);
   vec3 n = normalize(vNormal); 
- 
+
   //vec3 cameraPosition  = vcameraPosition .xyz;
   vec3 worldPos = vPosition.xyz;
   vec3 viewDir = normalize(cameraPosition - worldPos);
 
-
-  
-  vec4 lightPosition =  vec4(lightx, lighty, lightz, 1.0);
+  vec4 lightPosition = vec4(lightx, lighty, lightz, 1.0);
   vec3 sunDir = normalize(lightPosition.xyz - worldPos);
 
   float NdotL = dot(sunDir, n);
 
-  
-  vec3 reflectDir = reflect(-viewDir,n);
-  vec3 reflectedColor  = textureCube(cube_Texture, reflectDir).rgb;
-  vec3 groundColor = water_Color + calc_Spec(256.0, sunDir, cameraPosition , worldPos, n, viewDir) * k_s;
+  vec3 reflectDir = reflect(-viewDir, n);
+  vec3 reflectedColor = textureCube(cube_Texture, reflectDir).rgb;
+  vec3 groundColor = water_Color + calc_Spec(256.0, sunDir, cameraPosition, worldPos, n, viewDir) * k_s;
 
   vec3 diffuseLight = diffuse_water_Color * NdotL;
   vec3 finalColor = k_a * groundColor + k_d * diffuseLight;
 
-  vec3 fogColor = applyFog(finalColor, length(worldPos - cameraPosition ), normalize(cameraPosition  - worldPos), sunDir);
+  vec3 fogColor = applyFog(finalColor, length(worldPos - cameraPosition), normalize(cameraPosition - worldPos), sunDir);
   float fresnel = fresnelBias + fresnelScale * pow(1.0 - clamp(dot(viewDir, n), 0.0, 1.0), fresnelPower);
   fresnel = clamp(fresnel, 0.0, 1.0);
   finalColor = mix(finalColor, reflectedColor, fresnel);
   finalColor = pow(finalColor, vec3(1.0 / 2.2));
  // finalColor = finalColor + test * 0.0;
-  gl_FragColor =  vec4(finalColor, 1.0); //vec4(normalize(vNormal) * 0.5 + 0.5, 1.0);
+  vec4 data = texture2D(waterTexture, vUv); 
+  float value = data.r;
+  gl_FragColor = vec4(value, value, value, 1.0); //vec4(normalize(vNormal) * 0.5 + 0.5, 1.0);
 }

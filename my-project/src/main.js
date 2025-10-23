@@ -14,7 +14,7 @@ import fft_passfrag from './shaders/fft_passfrag.glsl?raw';
 import fft_passvertex from './shaders/fft_passvertex.glsl?raw';
 import FFT_Function from "glsl-fft/index.glsl?raw";
 import fft from 'glsl-fft';
-import { createSpectrum } from './waveSpectrum.js';
+import { createSpectrum, computeFFT } from './helperfunctions.js';
 
 // Declare global variables
 let container, controls, renderer, scene, camera, mesh, groundMesh;
@@ -68,7 +68,8 @@ const waterUniforms = {
   diffuse_water_Color: { value: new THREE.Vector3(0.0, 0.0, 1.0) },
   uMedianAmplitude: { value: 1.0 },
   uMedianWavelength: { value: 15.0 },
-  uWinddirection: { value: 0.0 }
+  uWinddirection: { value: 0.0 },
+  waterTexture: {value: null}
 };
 
 // Plane and GUI control settings
@@ -124,14 +125,25 @@ const rtOptions = {
   format: THREE.RGBAFormat,
   type: THREE.FloatType,
 };
+// Identifiers for your three.js render targets
+const INPUT_ID = 'philipsSpectrum';
+const PING_ID = 'fft_ping';
+const PONG_ID = 'fft_pong';
+const OUTPUT_ID = 'height_dx';
+
 const placeHolderplane = new THREE.PlaneGeometry(2, 2);
 const placeholderObject = new THREE.Mesh(placeHolderplane, philipsMaterial);
-const philipRender = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
+
 const philipsCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-
+const renderTargets = {
+  [INPUT_ID]: new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions),
+  [PING_ID]: new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions),
+  [PONG_ID]: new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions),
+  [OUTPUT_ID]: new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions),
+};
 scene.add(placeholderObject);
-
-const fft_passfrag_code = fft_passfrag.replace('#pragma glslify: fft = require(glsl-fft);',FFT_Function);
+//require(glsl-fft) funkar inte så ersätter den stringen med funktion från FFT_function
+const fft_passfrag_code = fft_passfrag.replace('#pragma glslify: fft = require(glsl-fft);', FFT_Function);
 
 placeholderObject.visible = false;
 const fftMaterial = new THREE.ShaderMaterial({
@@ -147,11 +159,6 @@ const fftMaterial = new THREE.ShaderMaterial({
   fragmentShader: fft_passfrag_code,
 });
 //const passes = fft({256.0, 256.0, philipRender, philipsCamera, false });
-// Identifiers for your three.js render targets
-const INPUT_ID = 'philipRender';
-const PING_ID = 'fft_ping';
-const PONG_ID = 'fft_ping';
-const OUTPUT_ID = 'height_dx';
 
 // 1. Generate the pass list
 //const fft = require('glsl-fft');
@@ -165,11 +172,7 @@ const passes = new fft({
   forward: false, // or false for inverse transform
   splitNormalization: true // Recommended for half-float textures
 });
-const renderTargets = {
-  [PING_ID]: new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions),
-  [PONG_ID]: new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions),
-  [OUTPUT_ID]: new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions),
-};
+
 
 // Background material setup
 const bgMaterial = new THREE.ShaderMaterial({
@@ -273,7 +276,7 @@ waterFolder.add(planeControls, 'numberOfOctaves', 0, 32).name('Octaves').listen(
 waterFolder.add(planeControls, 'uMedianAmplitude', 1, 10).name('Median Amp').listen();
 waterFolder.add(planeControls, 'uMedianWavelength', 1, 50).name('MedianWavel').listen();
 waterFolder.add(planeControls, 'uWinddirection', 0, 360).name('Wind Direction').listen();
-waterFolder.add(planeControls, 'water_Controler', ['Sum of sines', 'None negative sum of sine', 'Gestner_wave', 'FBM_wave']).listen();
+waterFolder.add(planeControls, 'water_Controler', ['Sum of sines', 'None negative sum of sine', 'Gestner_wave', 'FBM_wave', 'FFT_wave']).listen();
 waterFolder.add(planeControls, 'fogHeight', 250, 1000).name('Fog Height').listen();
 waterFolder.add(planeControls, 'fogBottom', -20, 100).name('Fog Bottom').listen();
 waterFolder.open();
@@ -286,6 +289,7 @@ function updateWater() {
     case 'None negative sum of sine': return 1;
     case 'Gestner_wave': return 2;
     case 'FBM_wave': return 3;
+    case 'FFT_wave': return 4;
     default: return 0;
   }
 }
@@ -295,7 +299,8 @@ function animate() {
   requestAnimationFrame(animate);
   stats.begin();
 
-  waterUniforms.time.value = 0.005 * (Date.now() - start);
+  waterUniforms.time.value = 0.001 * (Date.now() - start);
+
   waterUniforms.disScale.value = planeControls.displacement;
   waterUniforms.frequency.value = planeControls.frequency;
   waterUniforms.numberOfOctaves.value = planeControls.numberOfOctaves;
@@ -310,20 +315,34 @@ function animate() {
   skyUniforms.fogHeight.value = planeControls.fogHeight;
   skyUniforms.cameraPosition.value.copy(camera.position);
 
-  waterUniforms.water_Model.value = updateWater();
+
   light_Sphere.position.set(planeControls.lightx, planeControls.lighty, planeControls.lightz);
 
-  placeholderObject.material = fftMaterial;
+  placeholderObject.material = philipsMaterial;
   placeholderObject.visible = true;
 
-  renderer.setRenderTarget(philipRender);
+  renderer.setRenderTarget(renderTargets.philipsSpectrum);
   renderer.render(scene, philipsCamera);
 
+  placeholderObject.material = fftMaterial;
+ 
 
+  waterUniforms.waterTexture = philipsTexture;
+  // waterUniforms.waterTexture =  computeFFT(
+  //   renderer,
+  //   passes,
+  //   renderTargets,
+  //   fftMaterial,
+  //   scene,
+  //   philipsCamera
+  // );
+  //console.log(renderTargets.height_dx.texture);
+  placeholderObject.visible = false;
   renderer.setRenderTarget(null);
   //renderer.render(bgScene, bgCamera);
   //renderer.setRenderTarget(null);
-
+  
+  waterUniforms.water_Model.value = updateWater();
   placeholderObject.visible = false;
   renderer.render(scene, camera);
 

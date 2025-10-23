@@ -170,3 +170,31 @@ function displayMultiChannelFloatArrayAsImage(floatArray, size, canvasId) {
     // Put the ImageData onto the canvas
     ctx.putImageData(imageData, 0, 0);
 }
+
+//
+export function computeFFT(renderer, passes, renderTargets, material, scene, camera) {
+    for (const pass of passes) {
+        // 1. Get Input and Output Targets
+        const inputTarget = renderTargets[pass.input];
+        const outputTarget = renderTargets[pass.output];
+
+        // 2. Update Material Uniforms
+        material.uniforms.src.value = inputTarget.texture; // The result of the previous pass or the initial input
+        material.uniforms.subtransformSize.value = pass.subtransformSize;
+        material.uniforms.horizontal.value = pass.horizontal;
+        material.uniforms.forward.value = pass.forward;
+        material.uniforms.normalization.value = pass.normalization;
+        // resolution is already set if width/height are constant
+
+        // 3. Perform the Rendering Pass
+        renderer.setRenderTarget(outputTarget);
+        renderer.render(scene, camera);
+    }
+
+    // Reset render target
+    renderer.setRenderTarget(null);
+    
+
+    // The result is now in the texture of the last output target specified in the pass list.
+    return renderTargets['height_dx'].texture;
+}
