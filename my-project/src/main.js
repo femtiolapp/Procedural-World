@@ -69,7 +69,7 @@ const waterUniforms = {
   uMedianAmplitude: { value: 1.0 },
   uMedianWavelength: { value: 15.0 },
   uWinddirection: { value: 0.0 },
-  waterTexture: {value: null}
+  waterTexture: { value: 0.0 }
 };
 
 // Plane and GUI control settings
@@ -88,7 +88,8 @@ const planeControls = {
   uMedianWavelength: 15.0,
   uWinddirection: 1.0,
   fogHeight: 500.0,
-  fogBottom: -10.0
+  fogBottom: -10.0,
+  L_Domain: 1000
 };
 
 
@@ -102,13 +103,15 @@ const planeControls = {
 // uniform float uSize;
 // uniform float uplaneSize;
 //Create the philips spectrum
-const philipsTexture = new THREE.DataTexture(createSpectrum(1.0, 256, 31));
+const philipsTexture = createSpectrum(1.0, 256, 10, planeControls.L_Domain);
+//waterUniforms.waterTexture.value = philipsTexture;
 console.log(philipsTexture);
 const philipsUniforms = {
   uTime: { value: waterUniforms.time },
   uGravity: { value: 9.82 },
   uSize: { value: planeControls.width },
-  h0Spectrum: { value: philipsTexture }
+  h0Spectrum: { value: philipsTexture },
+  L_Domain: { value: planeControls.L_Domain }
 };
 
 const philipsMaterial = new THREE.ShaderMaterial({
@@ -231,6 +234,8 @@ scene.add(helper);
 
 // Renderer and DOM setup
 renderer = new THREE.WebGLRenderer();
+const half_float_support = renderer.extensions.get('OES_texture_half_float');
+console.log("Half-Float Support:", half_float_support);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.getElementById('container').appendChild(renderer.domElement);
@@ -293,14 +298,32 @@ function updateWater() {
     default: return 0;
   }
 }
-
+function cloneTexture(renderer, sourceTexture) {
+    const size = sourceTexture.image.width;
+    const newTarget = new THREE.WebGLRenderTarget(size, size, rtOptions); // Use your existing rtOptions
+    
+    // Create a temporary material to draw the source texture onto the new target
+    const blitMaterial = new THREE.MeshBasicMaterial({ map: sourceTexture });
+    const blitMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blitMaterial);
+    
+    // Render the source texture onto the new target
+    renderer.setRenderTarget(newTarget);
+    renderer.render(blitMesh, philipsCamera); // Use your orthographic camera
+    
+    // Clean up
+    renderer.setRenderTarget(null);
+    blitMaterial.dispose();
+    blitMesh.geometry.dispose();
+    
+    return newTarget.texture; // Return the clean, isolated texture
+}
 // Animation Loop
 function animate() {
   requestAnimationFrame(animate);
   stats.begin();
 
   waterUniforms.time.value = 0.001 * (Date.now() - start);
-
+  philipsUniforms.uTime.value = 0.001 * (Date.now() - start);
   waterUniforms.disScale.value = planeControls.displacement;
   waterUniforms.frequency.value = planeControls.frequency;
   waterUniforms.numberOfOctaves.value = planeControls.numberOfOctaves;
@@ -322,28 +345,36 @@ function animate() {
   placeholderObject.visible = true;
 
   renderer.setRenderTarget(renderTargets.philipsSpectrum);
+  renderer.clear();
   renderer.render(scene, philipsCamera);
 
-  placeholderObject.material = fftMaterial;
- 
+//  waterUniforms.waterTexture.value = renderTargets.philipsSpectrum.texture;
 
-  waterUniforms.waterTexture = philipsTexture;
-  // waterUniforms.waterTexture =  computeFFT(
-  //   renderer,
-  //   passes,
-  //   renderTargets,
-  //   fftMaterial,
-  //   scene,
-  //   philipsCamera
-  // );
+  placeholderObject.material = fftMaterial;
+  fftMaterial.uniforms.src.value = renderTargets.philipsSpectrum.texture;
+
+  // waterUniforms.waterTexture = philipsTexture;
+
+  const fftOutputTexture = computeFFT(
+    renderer,
+    passes,
+    renderTargets,
+    fftMaterial,
+    scene,
+    philipsCamera
+  );
   //console.log(renderTargets.height_dx.texture);
-  placeholderObject.visible = false;
-  renderer.setRenderTarget(null);
+  //placeholderObject.visible = false;
+  //waterUniforms.waterTexture.value = renderTargets.height_dx.texture;
   //renderer.render(bgScene, bgCamera);
-  //renderer.setRenderTarget(null);
-  
-  waterUniforms.water_Model.value = updateWater();
+  const safeFftTexture = cloneTexture(renderer, fftOutputTexture);
+  renderer.setRenderTarget(null);
+  waterUniforms.waterTexture.value = safeFftTexture;
   placeholderObject.visible = false;
+
+
+  waterUniforms.water_Model.value = updateWater();
+
   renderer.render(scene, camera);
 
   stats.end();

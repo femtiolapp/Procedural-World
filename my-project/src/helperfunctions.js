@@ -9,29 +9,32 @@ function gaussianRandom(mean = 0, stdev = 1) {
     return z * stdev + mean;
 }
 
-function mirrorIndex(m, n, size){
+function mirrorIndex(m, n, size) {
     const mi = (size - m) % size;
     const ni = (size - n) % size;
     return mi * size + ni;
 }
 
-export function createSpectrum(amplitude, size, windSpeed) {
+export function createSpectrum(amplitude, size, windSpeed, L_domain) {
 
     const windDirection = new THREE.Vector2(1, 0).normalize();
     const gravity = 9.81;
+
     const L = Math.pow(windSpeed, 2) / gravity;
 
 
     const spectrum = [];
     const gaussNoise = [];
     const h0Array = []
-    const data = new Float32Array(4 * size * size); 
+    const data = new Float32Array(4 * size * size);
 
     for (let m = 0; m < size; m++) {
         for (let n = 0; n < size; n++) {
-            //Create a symmetric range from roughly −π to +π
-            const kx = (Math.PI * (2 * n - size)) / size;
-            const ky = (Math.PI * (2 * m - size)) / size;
+
+            const kX_index = (n < size / 2) ? n : n - size;
+            const kY_index = (m < size / 2) ? m : m - size;
+            const kx = (2.0 * Math.PI * kX_index) / L_domain;
+            const ky = (2.0 * Math.PI * kY_index) / L_domain;
             const k = new THREE.Vector2(kx, ky);
             const kLen = k.length();
 
@@ -45,12 +48,12 @@ export function createSpectrum(amplitude, size, windSpeed) {
             const kHat = k.clone().divideScalar(kLen);  // k/klen
             const alignment = kHat.dot(windDirection);
             // Small-wave damping constant
-            const l = L / 1000;
+            const smallWaveDamping = L_domain / 1000;
             const philips = amplitude *
                 Math.exp(-1 / (kLen * L) ** 2) /
                 (kLen ** 4) *
                 (alignment ** 2) *
-                Math.exp(-kLen * kLen * l * l);
+                Math.exp(-kLen * kLen * smallWaveDamping * smallWaveDamping);
 
             const noise = (new THREE.Vector2(gaussianRandom(0, 1), gaussianRandom(0, 1)));
             const h0 = new THREE.Vector2(
@@ -58,31 +61,39 @@ export function createSpectrum(amplitude, size, windSpeed) {
                 noise.y * Math.sqrt(philips / 2)
             );
             const idx = 4 * (m * size + n);
-            const conjugated_index = mirrorIndex(m,n, size) * 4;
+
             data[idx + 0] = h0.x;
             data[idx + 1] = h0.y;
-            data[conjugated_index + 2] = h0.x;
-            data[conjugated_index + 3] = -h0.y;
+            data[idx + 2] = 0.0;
+            data[idx + 3] = 0.0;
             spectrum.push(philips);
             gaussNoise.push(noise);
             h0Array.push(h0); // x = real , y = imaginary
         }
 
-    }
-    ;
-   // const image = createImage(data ,spectrum, gaussNoise, h0Array, size);
+    };
+    // const image = createImage(data ,spectrum, gaussNoise, h0Array, size);
     const image2 = displayMultiChannelFloatArrayAsImage(data, size, "canvas2");
-    return data;
+    const spectrumTexture = new THREE.DataTexture(
+        data,
+        size, // width
+        size, // height
+        // IMPORTANT: Use the correct format and type for floating-point data
+        THREE.RGBAFormat,
+        THREE.FloatType
+    );
+    spectrumTexture.needsUpdate = true;
+    return spectrumTexture;
 }
-function createImage(data ,spectrum, guaseNoise, h0Array, size) {
+function createImage(data, spectrum, guaseNoise, h0Array, size) {
     const minVal = Math.min(...spectrum);
     const maxVal = Math.max(...spectrum);
 
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
-    canvas.style.width = (size *2) + "px";   // zoom factor
-    canvas.style.height = (size *2) + "px";
+    canvas.style.width = (size * 2) + "px";   // zoom factor
+    canvas.style.height = (size * 2) + "px";
     document.body.appendChild(canvas);
 
     const ctx = canvas.getContext('2d');
@@ -100,10 +111,10 @@ function createImage(data ,spectrum, guaseNoise, h0Array, size) {
         const logNorm = (logVal - logMin) / (logMax - logMin);
         const norm = Math.pow(logNorm, 0.4); // gamma < 1 brightens
         const color = Math.floor(norm);
-     
+
         const idx = i * 4;
-        imageData.data[idx] =  h0Array[i].x * 1e3 ;    // R
-        imageData.data[idx + 1] =  h0Array[i].y *1e3; // G
+        imageData.data[idx] = h0Array[i].x * 1e3;    // R
+        imageData.data[idx + 1] = h0Array[i].y * 1e3; // G
         imageData.data[idx + 2] = 0; // B
         imageData.data[idx + 3] = 255;   // A
     }
@@ -147,7 +158,7 @@ function displayMultiChannelFloatArrayAsImage(floatArray, size, canvasId) {
         // This is a crucial step for visualization. You can choose
         // to visualize any combination of channels.
         // Here, we'll visualize the real part of h0(k) and its conjugate.
-        
+
         // Normalize the R channel
         const r = Math.floor(((floatR - rangeMin) / range) * 255);
         // Normalize the G channel
@@ -161,9 +172,9 @@ function displayMultiChannelFloatArrayAsImage(floatArray, size, canvasId) {
         const dataIndex = i * 4;
 
         // Assign the values
-        data[dataIndex + 0] = floatR*1e3;
-        data[dataIndex + 1] = floatG*1e3;
-        data[dataIndex + 2] = floatB*1e3;
+        data[dataIndex + 0] = floatR;
+        data[dataIndex + 1] = floatG;
+        data[dataIndex + 2] = floatB;
         data[dataIndex + 3] = a;
     }
 
@@ -173,11 +184,13 @@ function displayMultiChannelFloatArrayAsImage(floatArray, size, canvasId) {
 
 //
 export function computeFFT(renderer, passes, renderTargets, material, scene, camera) {
+    // 💡 Add safety to ensure uniform starts clean
+    material.uniforms.src.value = null;
     for (const pass of passes) {
         // 1. Get Input and Output Targets
         const inputTarget = renderTargets[pass.input];
         const outputTarget = renderTargets[pass.output];
-
+        //console.log(`Pass: ${pass.id}, Input: ${pass.input}, Output: ${pass.output}`);
         // 2. Update Material Uniforms
         material.uniforms.src.value = inputTarget.texture; // The result of the previous pass or the initial input
         material.uniforms.subtransformSize.value = pass.subtransformSize;
@@ -188,12 +201,13 @@ export function computeFFT(renderer, passes, renderTargets, material, scene, cam
 
         // 3. Perform the Rendering Pass
         renderer.setRenderTarget(outputTarget);
+        renderer.clear();
         renderer.render(scene, camera);
     }
 
     // Reset render target
-    renderer.setRenderTarget(null);
-    
+
+
 
     // The result is now in the texture of the last output target specified in the pass list.
     return renderTargets['height_dx'].texture;

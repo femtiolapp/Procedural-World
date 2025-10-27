@@ -12,7 +12,7 @@ vec3 applyFog(in vec3 col, in float t, in vec3 rd, in vec3 lig) {
   vec3 fogColor = mix(vec3(0.5, 0.6, 0.7), vec3(1.0, 0.9, 0.7), pow(sunAmount, 8.0));
   return mix(col, fogColor, fogAmount);
 }
-
+precision highp float;
 varying vec2 vUv;
 varying float noise;
 varying float noise_Displacement;
@@ -66,5 +66,9 @@ void main() {
  // finalColor = finalColor + test * 0.0;
   vec4 data = texture2D(waterTexture, vUv); 
   float value = data.r;
-  gl_FragColor = vec4(value, value, value, 1.0); //vec4(normalize(vNormal) * 0.5 + 0.5, 1.0);
+  float normalizedHeight = value * 256.0*256.0; 
+    // Visualize Real part (R) and Imaginary part (G)
+   // float real_component = data.r * scale + 0.5; 
+    //float imag_component = data.g * scale + 0.5;
+  gl_FragColor = vec4(data.r + 1.1,0.0,0.0 , 1.0); //vec4(normalize(vNormal) * 0.5 + 0.5, 1.0);
 }

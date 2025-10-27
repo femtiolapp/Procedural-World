@@ -13,7 +13,7 @@ struct Wave {
   float k;
 
 };
-
+precision highp float;
 varying vec2 vUv;
 varying float noise;
 uniform float disScale;
@@ -351,8 +351,8 @@ void main() {
 
     vNormal = normalize(mat3(modelMatrix) * normal);
     vPosition = modelMatrix  * vec4(position, 1.0);
-    vec4 heightData = texture2D(waterTexture, uv);
-    vec3 newpos = position + vec3(heightData.g,  heightData.r * 100000.0, heightData.b);
+    //vec4 heightData = texture2D(waterTexture, uv);
+    //vec3 newpos = position + vec3(heightData.g,  heightData.r * 100000.0, heightData.b);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position , 1.0);
   }
 
