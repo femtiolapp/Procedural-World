@@ -183,7 +183,7 @@ function displayMultiChannelFloatArrayAsImage(floatArray, size, canvasId) {
 }
 
 //
-export function computeFFT(renderer, passes, renderTargets, material, scene, camera) {
+export function computeFFT(renderer, passes, renderTargets, material, scene, camera, mrtTexture,outR) {
     // 💡 Add safety to ensure uniform starts clean
 
     // material.uniforms.src.value = null;
@@ -197,6 +197,7 @@ export function computeFFT(renderer, passes, renderTargets, material, scene, cam
         const inputTarget = renderTargets[pass.input];
         const outputTarget = renderTargets[pass.output];
         let inputTexture;
+        
         // console.log("output" + outputTarget);
 
         //  console.log(`FFT Pass ${pass.id}: ${pass.input} → ${pass.output}, subSize=${pass.subtransformSize}`);
@@ -210,9 +211,9 @@ export function computeFFT(renderer, passes, renderTargets, material, scene, cam
         //     srcTexture = inputTarget.texture;
 
         // }
-        if (pass.input === "philipsSpectrum") {
+        if (!lastTexture) {
             // First pass input
-            inputTexture = renderTargets.philipsSpectrum.texture;
+            inputTexture = mrtTexture;
         } else {
             // All other passes use the PREVIOUS output
             inputTexture = lastTexture;

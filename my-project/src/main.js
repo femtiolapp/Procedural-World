@@ -70,7 +70,9 @@ const waterUniforms = {
   uMedianAmplitude: { value: 1.0 },
   uMedianWavelength: { value: 15.0 },
   uWinddirection: { value: 0.0 },
-  waterTexture: { value: 0.0 }
+  waterHeightTexture: { value: 0.0 },
+  waterslopeXTexture: { value: 0.0 },
+  waterslopeZTexture: { value: 0.0 }
 };
 
 // Plane and GUI control settings
@@ -84,7 +86,7 @@ const planeControls = {
   lightx: 0.0,
   lighty: 113.0,
   lightz: -3000.0,
-  water_Controler: 'Sum of sines',
+  water_Controler: 'FFT_wave',
   uMedianAmplitude: 1.0,
   uMedianWavelength: 15.0,
   uWinddirection: 1.0,
@@ -116,7 +118,7 @@ const philipsUniforms = {
 };
 
 const philipsMaterial = new THREE.ShaderMaterial({
-  
+
   uniforms: philipsUniforms,
   vertexShader: philipsVertexhader,
   fragmentShader: philipsFragmentshader,
@@ -144,11 +146,11 @@ const PONG_ID = 'fft_pong';
 const OUTPUT_ID = 'height_dx';
 
 const placeHolderplane = new THREE.PlaneGeometry(2, 2);
-const mrtObject = new THREE.Mesh(placeHolderplane, philipsMaterial);
+const philpsObj = new THREE.Mesh(placeHolderplane, rawphilipsMaterial);
 //Test with seperate fftscene
 
 const philipsCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-const mrt = new THREE.WebGLRenderTarget(FFT_SIZE,FFT_SIZE,{...rtOptions ,count: 3});
+const mrt = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, { ...rtOptions, count: 3 });
 mrt.textures[0].name = "heightSpectrum";
 mrt.textures[1].name = "slopeXSpectrum";
 mrt.textures[2].name = "slopeZSpectrum";
@@ -163,7 +165,7 @@ const renderTargets = {
 //require(glsl-fft) funkar inte så ersätter den stringen med funktion från FFT_function
 const fft_passfrag_code = fft_passfrag.replace('#pragma glslify: fft = require(glsl-fft);', FFT_Function);
 
-mrtObject.visible = false;
+philpsObj.visible = false;
 const fftMaterial = new THREE.ShaderMaterial({
   uniforms: {
     u_inputTexture: { value: null },
@@ -178,12 +180,12 @@ const fftMaterial = new THREE.ShaderMaterial({
 });
 const fftObject = new THREE.Mesh(placeHolderplane, fftMaterial);
 fftObject.visible = false;
-//const fftScene = new THREE.Scene();
-const mrtScene = new THREE.Scene();
-mrtScene.background = null;
-mrtScene.add(mrtObject);
-///fftScene.background = null;
-//fftScene.add(fftObject);
+const fftScene = new THREE.Scene();
+const philpsScene = new THREE.Scene();
+philpsScene.background = null;
+philpsScene.add(philpsObj);
+fftScene.background = null;
+fftScene.add(fftObject);
 //const passes = fft({256.0, 256.0, philipRender, philipsCamera, false });
 
 // 1. Generate the pass list
@@ -256,7 +258,7 @@ helper = new THREE.Box3Helper(bbox, 0xffff00);
 scene.add(helper);
 
 // Renderer and DOM setup
-renderer = new THREE.WebGLRenderer({precision: 'highp'});
+renderer = new THREE.WebGLRenderer({ precision: 'highp' });
 
 console.log(renderer.capabilities.precision)
 const gl = renderer.getContext();
@@ -337,23 +339,23 @@ function updateWater() {
   }
 }
 function cloneTexture(renderer, sourceTexture) {
-    const size = sourceTexture.image.width;
-    const newTarget = new THREE.WebGLRenderTarget(size, size, rtOptions); // Use your existing rtOptions
-    
-    // Create a temporary material to draw the source texture onto the new target
-    const blitMaterial = new THREE.MeshBasicMaterial({ map: sourceTexture });
-    const blitMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blitMaterial);
-    
-    // Render the source texture onto the new target
-    renderer.setRenderTarget(newTarget);
-    renderer.render(blitMesh, philipsCamera); // Use your orthographic camera
-    
-    // Clean up
-    renderer.setRenderTarget(null);
-    blitMaterial.dispose();
-    blitMesh.geometry.dispose();
-    
-    return newTarget.texture; // Return the clean, isolated texture
+  const size = sourceTexture.image.width;
+  const newTarget = new THREE.WebGLRenderTarget(size, size, rtOptions); // Use your existing rtOptions
+
+  // Create a temporary material to draw the source texture onto the new target
+  const blitMaterial = new THREE.MeshBasicMaterial({ map: sourceTexture });
+  const blitMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blitMaterial);
+
+  // Render the source texture onto the new target
+  renderer.setRenderTarget(newTarget);
+  renderer.render(blitMesh, philipsCamera); // Use your orthographic camera
+
+  // Clean up
+  renderer.setRenderTarget(null);
+  blitMaterial.dispose();
+  blitMesh.geometry.dispose();
+
+  return newTarget.texture; // Return the clean, isolated texture
 }
 // Animation Loop
 function animate() {
@@ -379,40 +381,73 @@ function animate() {
 
   light_Sphere.position.set(planeControls.lightx, planeControls.lighty, planeControls.lightz);
 
-  mrtObject.material = philipsMaterial;
-  mrtObject.visible = true;
-  fftObject.visible = false
-  //renderer.setRenderTarget(mrt);
-  renderer.setRenderTarget(renderTargets.philipsSpectrum);
-  renderer.clear(true, true, true);
-  renderer.render(mrtScene, philipsCamera);
 
-  
- // waterUniforms.waterTexture.value = renderTargets.philipsSpectrum.texture;//mrt.textures[0];
-  mrtObject.material = fftMaterial;
-  
+  philpsObj.visible = true;
+
+  //renderer.setRenderTarget(mrt);
+  renderer.setRenderTarget(mrt);
+  renderer.clear(true, true, true);
+  renderer.render(philpsScene, philipsCamera);
+
+
+  // waterUniforms.waterTexture.value = renderTargets.philipsSpectrum.texture;//mrt.textures[0];
+
+  philpsObj.visible = false;
+  fftObject.visible = true;
   //fftMaterial.uniforms.u_inputTexture.value = renderTargets.philipsSpectrum.textures[0];
-  fftMaterial.uniforms.u_inputTexture.value = renderTargets.philipsSpectrum.texture;
- // waterUniforms.waterTexture = renderTargets.philipsSpectrum.texture;
-  const fftOutputTexture = computeFFT(
+  const heightRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
+  const slopeXRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
+  const slopeZRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
+  // waterUniforms.waterTexture = renderTargets.philipsSpectrum.texture;
+  const heightTextureRaw = computeFFT(
     renderer,
     passes,
     renderTargets,
     fftMaterial,
-    mrtScene,
+    fftScene,
     philipsCamera,
-
-    
-    
+    mrt.textures[0],
+    heightRT,
   );
-  //console.log(renderTargets.height_dx.texture);
+
+  const heightTexture = cloneTexture(renderer, heightTextureRaw);
+  //fftMaterial.uniforms.u_inputTexture.value = mrt.textures[1];
+  const slopeXTextureRaw = computeFFT(
+    renderer,
+    passes,
+    renderTargets,
+    fftMaterial,
+    fftScene,
+    philipsCamera,
+    mrt.textures[1],
+    slopeXRT,
+  );
+  const slopeXTexture = cloneTexture(renderer, slopeXTextureRaw);
+  const slopeZTextureRaw = computeFFT(
+    renderer,
+    passes,
+    renderTargets,
+    fftMaterial,
+    fftScene,
+    philipsCamera,
+    mrt.textures[2],
+    slopeZRT,
+
+
+  );
+  const slopeZTexture = cloneTexture(renderer, slopeZTextureRaw);
+  // //console.log(renderTargets.height_dx.texture);
   //placeholderObject.visible = false;
   //waterUniforms.waterTexture.value = renderTargets.height_dx.texture;
   //renderer.render(bgScene, bgCamera);
   //const safeFftTexture = cloneTexture(renderer, fftOutputTexture);
   renderer.setRenderTarget(null);
-  mrtObject.visible = false;
-  waterUniforms.waterTexture.value = fftOutputTexture;
+  philpsObj.visible = false;
+  waterUniforms.waterHeightTexture.value = heightTexture;
+  waterUniforms.waterslopeXTexture.value = slopeXTexture;
+  waterUniforms.waterslopeZTexture.value = slopeZTexture;
+
+
 
 
 
