@@ -73,7 +73,7 @@ export function createSpectrum(amplitude, size, windSpeed, L_domain) {
 
     };
     // const image = createImage(data ,spectrum, gaussNoise, h0Array, size);
-    const image2 = displayMultiChannelFloatArrayAsImage(data, size, "canvas2");
+    //const image2 = displayMultiChannelFloatArrayAsImage(data, size, "canvas2");
     const spectrumTexture = new THREE.DataTexture(
         data,
         size, // width

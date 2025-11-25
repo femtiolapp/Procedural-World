@@ -41,8 +41,6 @@ const loader = new THREE.CubeTextureLoader();
 loader.setPath('/Skybox/allsky/');
 const cube_Texture = loader.load(['px.png', 'nx.png', 'py.png', 'ny.png', 'nz.png', 'pz.png']);
 
-// Background scene setup
-const bgScene = new THREE.Scene();
 
 
 // Uniforms
@@ -202,17 +200,9 @@ const passes = new fft({
 });
 
 
-// Background material setup
-const bgMaterial = new THREE.ShaderMaterial({
-  uniforms: skyUniforms,
-  vertexShader: skyBoxVertexShader,
-  fragmentShader: skyBoxFragmentShader,
-  side: THREE.BackSide,
-  depthWrite: false
-});
 
-const skyCube = new THREE.BoxGeometry(3000, 3000, 3000);
-const bgMesh = new THREE.Mesh(skyCube, bgMaterial);
+
+
 //bgScene.add(bgMesh);
 //scene.add(bgMesh);
 scene.background = cube_Texture;
@@ -381,74 +371,75 @@ function animate() {
 
   light_Sphere.position.set(planeControls.lightx, planeControls.lighty, planeControls.lightz);
 
-
-  philpsObj.visible = true;
-
-  //renderer.setRenderTarget(mrt);
-  renderer.setRenderTarget(mrt);
-  renderer.clear(true, true, true);
-  renderer.render(philpsScene, philipsCamera);
+  if (planeControls.water_Controler === 'FFT_wave') {
 
 
-  // waterUniforms.waterTexture.value = renderTargets.philipsSpectrum.texture;//mrt.textures[0];
+    philpsObj.visible = true;
 
-  philpsObj.visible = false;
-  fftObject.visible = true;
-  //fftMaterial.uniforms.u_inputTexture.value = renderTargets.philipsSpectrum.textures[0];
-  const heightRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
-  const slopeXRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
-  const slopeZRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
-  // waterUniforms.waterTexture = renderTargets.philipsSpectrum.texture;
-  const heightTextureRaw = computeFFT(
-    renderer,
-    passes,
-    renderTargets,
-    fftMaterial,
-    fftScene,
-    philipsCamera,
-    mrt.textures[0],
-    heightRT,
-  );
-
-  const heightTexture = cloneTexture(renderer, heightTextureRaw);
-  //fftMaterial.uniforms.u_inputTexture.value = mrt.textures[1];
-  const slopeXTextureRaw = computeFFT(
-    renderer,
-    passes,
-    renderTargets,
-    fftMaterial,
-    fftScene,
-    philipsCamera,
-    mrt.textures[1],
-    slopeXRT,
-  );
-  const slopeXTexture = cloneTexture(renderer, slopeXTextureRaw);
-  const slopeZTextureRaw = computeFFT(
-    renderer,
-    passes,
-    renderTargets,
-    fftMaterial,
-    fftScene,
-    philipsCamera,
-    mrt.textures[2],
-    slopeZRT,
+    //renderer.setRenderTarget(mrt);
+    renderer.setRenderTarget(mrt);
+    renderer.clear(true, true, true);
+    renderer.render(philpsScene, philipsCamera);
 
 
-  );
-  const slopeZTexture = cloneTexture(renderer, slopeZTextureRaw);
-  // //console.log(renderTargets.height_dx.texture);
-  //placeholderObject.visible = false;
-  //waterUniforms.waterTexture.value = renderTargets.height_dx.texture;
-  //renderer.render(bgScene, bgCamera);
-  //const safeFftTexture = cloneTexture(renderer, fftOutputTexture);
-  renderer.setRenderTarget(null);
-  philpsObj.visible = false;
-  waterUniforms.waterHeightTexture.value = heightTexture;
-  waterUniforms.waterslopeXTexture.value = slopeXTexture;
-  waterUniforms.waterslopeZTexture.value = slopeZTexture;
+    // waterUniforms.waterTexture.value = renderTargets.philipsSpectrum.texture;//mrt.textures[0];
+
+    philpsObj.visible = false;
+    fftObject.visible = true;
+    //fftMaterial.uniforms.u_inputTexture.value = renderTargets.philipsSpectrum.textures[0];
+    const heightRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
+    const slopeXRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
+    const slopeZRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
+    // waterUniforms.waterTexture = renderTargets.philipsSpectrum.texture;
+    const heightTextureRaw = computeFFT(
+      renderer,
+      passes,
+      renderTargets,
+      fftMaterial,
+      fftScene,
+      philipsCamera,
+      mrt.textures[0],
+      heightRT,
+    );
+
+    const heightTexture = cloneTexture(renderer, heightTextureRaw);
+    //fftMaterial.uniforms.u_inputTexture.value = mrt.textures[1];
+    const slopeXTextureRaw = computeFFT(
+      renderer,
+      passes,
+      renderTargets,
+      fftMaterial,
+      fftScene,
+      philipsCamera,
+      mrt.textures[1],
+      slopeXRT,
+    );
+    const slopeXTexture = cloneTexture(renderer, slopeXTextureRaw);
+    const slopeZTextureRaw = computeFFT(
+      renderer,
+      passes,
+      renderTargets,
+      fftMaterial,
+      fftScene,
+      philipsCamera,
+      mrt.textures[2],
+      slopeZRT,
 
 
+    );
+    const slopeZTexture = cloneTexture(renderer, slopeZTextureRaw);
+    // //console.log(renderTargets.height_dx.texture);
+    //placeholderObject.visible = false;
+    //waterUniforms.waterTexture.value = renderTargets.height_dx.texture;
+    //renderer.render(bgScene, bgCamera);
+    //const safeFftTexture = cloneTexture(renderer, fftOutputTexture);
+    renderer.setRenderTarget(null);
+    philpsObj.visible = false;
+    waterUniforms.waterHeightTexture.value = heightTexture;
+    waterUniforms.waterslopeXTexture.value = slopeXTexture;
+    waterUniforms.waterslopeZTexture.value = slopeZTexture;
 
+  }
 
 
   waterUniforms.water_Model.value = updateWater();
