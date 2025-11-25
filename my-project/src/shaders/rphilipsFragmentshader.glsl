@@ -74,11 +74,12 @@ uniform float uTime;
 uniform float uGravity;
 uniform float uSize;
 uniform float L_Domain;
-varying vec2 vUv; //k texture cordinate
 
-//layout(location = 0) out vec4 outHeight;
-//layout(location = 1) out vec4 outSlopeX;
-//layout(location = 2) out vec4 outSlopeZ;
+in vec2 vUv;
+//out vec4 outVal;
+layout(location = 0) out vec4 outHeight;
+layout(location = 1) out vec4 outSlopeX;
+layout(location = 2) out vec4 outSlopeZ;
 
 vec2 multiplyComplex(vec2 a, vec2 b) {
     return vec2((a.x * b.x) - (a.y * b.y), (a.x * b.y) + (a.y * b.x));
@@ -90,9 +91,9 @@ float calcFreq(vec2 k) {
     return sqrt(uGravity * kLen);
 }
 //Scale the kvector to the range −π to +π
-vec2 getKvector(vec2 vUv, float size) {
+vec2 getKvector(vec2 vuv, float size) {
     float PI = 3.14159265359;
-    vec2 index = floor(vUv * size);
+    vec2 index = floor(vuv * size);
 
     //Nyquist Alias
     vec2 k_idx = vec2((index.x < size / 2.0) ? index.x : index.x - size, (index.y < size / 2.0) ? index.y : index.y - size);
@@ -100,8 +101,8 @@ vec2 getKvector(vec2 vUv, float size) {
     return k;
 
 }
-vec2 getMirroredK(vec2 vUv, float size) {
-    vec2 index = floor(vUv * size);
+vec2 getMirroredK(vec2 vuv, float size) {
+    vec2 index = floor(vuv * size);
     //Calculate i = (size - m) % size
     vec2 mirroredIndex = vec2(mod(size - index.x, size), mod(size - index.y, size));
 
@@ -110,11 +111,11 @@ vec2 getMirroredK(vec2 vUv, float size) {
 
 
 void main() {
-    vec4 data = texture2D(h0Spectrum, vUv);
+    vec4 data = texture(h0Spectrum, vUv);
     vec2 h0_k = data.xy;
 
     vec2 vUvMirrored = getMirroredK(vUv, uSize);
-    vec4 data_conjugate = texture2D(h0Spectrum, vUvMirrored);
+    vec4 data_conjugate = texture(h0Spectrum, vUvMirrored);
     vec2 h0_konjugat = vec2(data_conjugate.x, -data_conjugate.y); //konjugatet
     vec2 k_vector = getKvector(vUv, uSize);
     float freq_t = calcFreq(k_vector) * uTime;
@@ -128,12 +129,11 @@ void main() {
     vec2 term2 = multiplyComplex(h0_konjugat, phase2);
 
     vec2 complexSpectrum = term1 + term2;
-    //vec2 hdx = multiplyComplex(vec2(0.0, k_vector.x), complexSpectrum);
-    //vec2 hdz = multiplyComplex(vec2(0.0, k_vector.y), complexSpectrum);
-
-    //outHeight = vec4(complexSpectrum, 0.0, 0.0);   // complex height frequency
-    //outSlopeX = vec4(hdx, 0.0, 0.0); // complex slope-x frequency
-    //outSlopeZ = vec4(hdz, 0.0, 0.0); // complex slope-z frequency
-    gl_FragColor = vec4(complexSpectrum.x, complexSpectrum.y, 0.0, 1.0);
+    vec2 hdx = multiplyComplex(vec2(0.0, k_vector.x), complexSpectrum);
+    vec2 hdz = multiplyComplex(vec2(0.0, k_vector.y), complexSpectrum);
+    
+    outHeight = vec4(complexSpectrum.x, complexSpectrum.y, 0.0, 1.0);
+    outSlopeX = vec4(hdx, 0.0, 0.0); // complex slope-x frequency
+    outSlopeZ = vec4(hdz, 0.0, 0.0); // complex slope-z frequency
     
 }

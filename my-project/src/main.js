@@ -10,6 +10,8 @@ import skyBoxVertexShader from './shaders/skyBoxvertexShader.glsl?raw';
 import skyBoxFragmentShader from './shaders/skyBoxfragmentShader.glsl?raw';
 import philipsFragmentshader from './shaders/philipsFragmentshader.glsl?raw';
 import philipsVertexhader from './shaders/philipsVertexshader.glsl?raw';
+import rphilipsFragmentshader from './shaders/rphilipsFragmentshader.glsl?raw';
+import rphilipsVertexhader from './shaders/rphilipsVertexshader.glsl?raw';
 import fft_passfrag from './shaders/fft_passfrag.glsl?raw';
 import fft_passvertex from './shaders/fft_passvertex.glsl?raw';
 import FFT_Function from "glsl-fft/index.glsl?raw";
@@ -41,8 +43,7 @@ const cube_Texture = loader.load(['px.png', 'nx.png', 'py.png', 'ny.png', 'nz.pn
 
 // Background scene setup
 const bgScene = new THREE.Scene();
-const bgCamera = new THREE.Camera();
-bgCamera.position.z = 1;
+
 
 // Uniforms
 const skyUniforms = {
@@ -103,7 +104,7 @@ const planeControls = {
 // uniform float uSize;
 // uniform float uplaneSize;
 //Create the philips spectrum
-const philipsTexture = createSpectrum(1.0, 256, 10, planeControls.L_Domain);
+const philipsTexture = createSpectrum(1.0, 256, 310, planeControls.L_Domain);
 //waterUniforms.waterTexture.value = philipsTexture;
 console.log(philipsTexture);
 const philipsUniforms = {
@@ -115,9 +116,16 @@ const philipsUniforms = {
 };
 
 const philipsMaterial = new THREE.ShaderMaterial({
+  
   uniforms: philipsUniforms,
   vertexShader: philipsVertexhader,
   fragmentShader: philipsFragmentshader,
+});
+const rawphilipsMaterial = new THREE.RawShaderMaterial({
+  glslVersion: THREE.GLSL3,
+  uniforms: philipsUniforms,
+  vertexShader: rphilipsVertexhader,
+  fragmentShader: rphilipsFragmentshader,
 });
 
 const rtOptions = {
@@ -127,6 +135,7 @@ const rtOptions = {
   wrapT: THREE.RepeatWrapping,
   format: THREE.RGBAFormat,
   type: THREE.FloatType,
+  internalFormat: 'RGBA32F',
 };
 // Identifiers for your three.js render targets
 const INPUT_ID = 'philipsSpectrum';
@@ -135,32 +144,46 @@ const PONG_ID = 'fft_pong';
 const OUTPUT_ID = 'height_dx';
 
 const placeHolderplane = new THREE.PlaneGeometry(2, 2);
-const placeholderObject = new THREE.Mesh(placeHolderplane, philipsMaterial);
+const mrtObject = new THREE.Mesh(placeHolderplane, philipsMaterial);
+//Test with seperate fftscene
 
 const philipsCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const mrt = new THREE.WebGLRenderTarget(FFT_SIZE,FFT_SIZE,{...rtOptions ,count: 3});
+mrt.textures[0].name = "heightSpectrum";
+mrt.textures[1].name = "slopeXSpectrum";
+mrt.textures[2].name = "slopeZSpectrum";
+console.log(mrt);
 const renderTargets = {
   [INPUT_ID]: new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions),
   [PING_ID]: new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions),
   [PONG_ID]: new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions),
   [OUTPUT_ID]: new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions),
 };
-scene.add(placeholderObject);
+
 //require(glsl-fft) funkar inte så ersätter den stringen med funktion från FFT_function
 const fft_passfrag_code = fft_passfrag.replace('#pragma glslify: fft = require(glsl-fft);', FFT_Function);
 
-placeholderObject.visible = false;
+mrtObject.visible = false;
 const fftMaterial = new THREE.ShaderMaterial({
   uniforms: {
-    src: { value: null },
-    resolution: { value: new THREE.Vector2(1 / FFT_SIZE, 1 / FFT_SIZE) },
-    subtransformSize: { value: 0 },
-    horizontal: { value: false },
-    forward: { value: false },
-    normalization: { value: 0 }
+    u_inputTexture: { value: null },
+    u_resolution: { value: new THREE.Vector2(1 / FFT_SIZE, 1 / FFT_SIZE) },
+    u_subtransformSize: { value: 0 },
+    u_horizontal: { value: false },
+    u_forward: { value: false },
+    u_normalization: { value: 0 }
   },
   vertexShader: fft_passvertex,
   fragmentShader: fft_passfrag_code,
 });
+const fftObject = new THREE.Mesh(placeHolderplane, fftMaterial);
+fftObject.visible = false;
+//const fftScene = new THREE.Scene();
+const mrtScene = new THREE.Scene();
+mrtScene.background = null;
+mrtScene.add(mrtObject);
+///fftScene.background = null;
+//fftScene.add(fftObject);
 //const passes = fft({256.0, 256.0, philipRender, philipsCamera, false });
 
 // 1. Generate the pass list
@@ -172,7 +195,7 @@ const passes = new fft({
   ping: PING_ID,
   pong: PONG_ID,
   output: OUTPUT_ID,
-  forward: false, // or false for inverse transform
+  forward: false, //  false for inverse transform
   splitNormalization: true // Recommended for half-float textures
 });
 
@@ -233,7 +256,22 @@ helper = new THREE.Box3Helper(bbox, 0xffff00);
 scene.add(helper);
 
 // Renderer and DOM setup
-renderer = new THREE.WebGLRenderer();
+renderer = new THREE.WebGLRenderer({precision: 'highp'});
+
+console.log(renderer.capabilities.precision)
+const gl = renderer.getContext();
+
+
+console.log('Vertex Shader Float Precision:', gl.getShaderPrecisionFormat(gl.VERTEX_SHADER, gl.HIGH_FLOAT));
+console.log('Fragment Shader Float Precision:', gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT));
+console.log('isWebGL2:', renderer.capabilities.isWebGL2);
+console.log('Float textures:', renderer.extensions.has('OES_texture_float'));
+console.log('Color buffer float:', renderer.extensions.has('EXT_color_buffer_float'));
+console.log('Half float color buffer:', renderer.extensions.has('EXT_color_buffer_half_float'));
+
+//console.log(caps.getMaxPrecision());
+//console.log(caps.isWebGL2);
+//console.log(caps.floatFragmentTextures); 
 const half_float_support = renderer.extensions.get('OES_texture_half_float');
 console.log("Half-Float Support:", half_float_support);
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -321,9 +359,9 @@ function cloneTexture(renderer, sourceTexture) {
 function animate() {
   requestAnimationFrame(animate);
   stats.begin();
-
-  waterUniforms.time.value = 0.001 * (Date.now() - start);
-  philipsUniforms.uTime.value = 0.001 * (Date.now() - start);
+  const t = 0.001 * (Date.now() - start);
+  waterUniforms.time.value = t;
+  philipsUniforms.uTime.value = t;
   waterUniforms.disScale.value = planeControls.displacement;
   waterUniforms.frequency.value = planeControls.frequency;
   waterUniforms.numberOfOctaves.value = planeControls.numberOfOctaves;
@@ -341,36 +379,41 @@ function animate() {
 
   light_Sphere.position.set(planeControls.lightx, planeControls.lighty, planeControls.lightz);
 
-  placeholderObject.material = philipsMaterial;
-  placeholderObject.visible = true;
-
+  mrtObject.material = philipsMaterial;
+  mrtObject.visible = true;
+  fftObject.visible = false
+  //renderer.setRenderTarget(mrt);
   renderer.setRenderTarget(renderTargets.philipsSpectrum);
-  renderer.clear();
-  renderer.render(scene, philipsCamera);
+  renderer.clear(true, true, true);
+  renderer.render(mrtScene, philipsCamera);
 
-//  waterUniforms.waterTexture.value = renderTargets.philipsSpectrum.texture;
-
-  placeholderObject.material = fftMaterial;
-  fftMaterial.uniforms.src.value = renderTargets.philipsSpectrum.texture;
-
-  // waterUniforms.waterTexture = philipsTexture;
-
+  
+ // waterUniforms.waterTexture.value = renderTargets.philipsSpectrum.texture;//mrt.textures[0];
+  mrtObject.material = fftMaterial;
+  
+  //fftMaterial.uniforms.u_inputTexture.value = renderTargets.philipsSpectrum.textures[0];
+  fftMaterial.uniforms.u_inputTexture.value = renderTargets.philipsSpectrum.texture;
+ // waterUniforms.waterTexture = renderTargets.philipsSpectrum.texture;
   const fftOutputTexture = computeFFT(
     renderer,
     passes,
     renderTargets,
     fftMaterial,
-    scene,
-    philipsCamera
+    mrtScene,
+    philipsCamera,
+
+    
+    
   );
   //console.log(renderTargets.height_dx.texture);
   //placeholderObject.visible = false;
   //waterUniforms.waterTexture.value = renderTargets.height_dx.texture;
   //renderer.render(bgScene, bgCamera);
-  const safeFftTexture = cloneTexture(renderer, fftOutputTexture);
+  //const safeFftTexture = cloneTexture(renderer, fftOutputTexture);
   renderer.setRenderTarget(null);
-  waterUniforms.waterTexture.value = safeFftTexture;
-  placeholderObject.visible = false;
+  mrtObject.visible = false;
+  waterUniforms.waterTexture.value = fftOutputTexture;
+
 
 
   waterUniforms.water_Model.value = updateWater();
@@ -381,3 +424,4 @@ function animate() {
 }
 
 animate();
+

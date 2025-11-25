@@ -64,11 +64,15 @@ void main() {
   finalColor = mix(finalColor, reflectedColor, fresnel);
   finalColor = pow(finalColor, vec3(1.0 / 2.2));
  // finalColor = finalColor + test * 0.0;
-  vec4 data = texture2D(waterTexture, vUv); 
-  float value = data.r;
-  float normalizedHeight = value * 256.0*256.0; 
+  //---------Test av fft värden-------------
+  vec4 data = texture2D(waterTexture, vUv);
+  float value = abs(data.r) + 0.1;
+  float normalizedHeight = value * 256.0 * 256.0;
+  float scale = 10.0;
+
     // Visualize Real part (R) and Imaginary part (G)
-   // float real_component = data.r * scale + 0.5; 
-    //float imag_component = data.g * scale + 0.5;
-  gl_FragColor = vec4(data.r + 1.1,0.0,0.0 , 1.0); //vec4(normalize(vNormal) * 0.5 + 0.5, 1.0);
+  float real_component = data.r;
+  float imag_component = data.g ;
+ // gl_FragColor = vec4(data.r, data.g,0.0,1.0);
+  gl_FragColor = vec4(finalColor, 1.0); //vec4(normalize(vNormal) * 0.5 + 0.5, 1.0);
 }

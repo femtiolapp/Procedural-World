@@ -185,30 +185,60 @@ function displayMultiChannelFloatArrayAsImage(floatArray, size, canvasId) {
 //
 export function computeFFT(renderer, passes, renderTargets, material, scene, camera) {
     // 💡 Add safety to ensure uniform starts clean
-    material.uniforms.src.value = null;
+
+    // material.uniforms.src.value = null;
+
+
+    let lastTexture = null;
+
     for (const pass of passes) {
         // 1. Get Input and Output Targets
+
         const inputTarget = renderTargets[pass.input];
         const outputTarget = renderTargets[pass.output];
-        //console.log(`Pass: ${pass.id}, Input: ${pass.input}, Output: ${pass.output}`);
+        let inputTexture;
+        // console.log("output" + outputTarget);
+
+        //  console.log(`FFT Pass ${pass.id}: ${pass.input} → ${pass.output}, subSize=${pass.subtransformSize}`);
         // 2. Update Material Uniforms
-        material.uniforms.src.value = inputTarget.texture; // The result of the previous pass or the initial input
-        material.uniforms.subtransformSize.value = pass.subtransformSize;
-        material.uniforms.horizontal.value = pass.horizontal;
-        material.uniforms.forward.value = pass.forward;
-        material.uniforms.normalization.value = pass.normalization;
+        // let srcTexture;
+        // if (pass.input === "philipsSpectrum") {
+        //     // The FFT pipeline should begin with the height spectrum
+
+        //     srcTexture = inputTarget.texture
+        // } else {
+        //     srcTexture = inputTarget.texture;
+
+        // }
+        if (pass.input === "philipsSpectrum") {
+            // First pass input
+            inputTexture = renderTargets.philipsSpectrum.texture;
+        } else {
+            // All other passes use the PREVIOUS output
+            inputTexture = lastTexture;
+        }
+
+        material.uniforms.u_inputTexture.value = inputTexture;
+
+        
+
+        material.uniforms.u_subtransformSize.value = pass.subtransformSize;
+        material.uniforms.u_horizontal.value = pass.horizontal;
+        material.uniforms.u_forward.value = pass.forward;
+        material.uniforms.u_normalization.value = pass.normalization;
         // resolution is already set if width/height are constant
 
         // 3. Perform the Rendering Pass
         renderer.setRenderTarget(outputTarget);
-        renderer.clear();
+        //
+        renderer.clear(true, true, true);
         renderer.render(scene, camera);
+        // console.log(lastTexture);
+        lastTexture = outputTarget.texture;
+        //inputTexture = lastTexture;
     }
 
     // Reset render target
-
-
-
-    // The result is now in the texture of the last output target specified in the pass list.
-    return renderTargets['height_dx'].texture;
+    renderer.setRenderTarget(null); // reset to screen
+    return lastTexture;
 }

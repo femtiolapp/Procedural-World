@@ -3,7 +3,7 @@ precision highp float;
 
 #pragma glslify: fft = require(glsl-fft);
 
-uniform sampler2D u_inputTexture; // The texture from the previous pass
+uniform highp sampler2D u_inputTexture; // The texture from the previous pass
 uniform vec2 u_resolution;       // [1/SIZE, 1/SIZE]
 uniform float u_subtransformSize;
 uniform float u_normalization;

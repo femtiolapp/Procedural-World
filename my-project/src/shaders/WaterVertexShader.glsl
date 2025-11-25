@@ -33,7 +33,7 @@ uniform float uFBMAmplitude;
 uniform float uFBMPersistence;
 uniform float uWavesLacunarity;
 varying float noise_Displacement;
-uniform  sampler2D  waterTexture;
+uniform highp sampler2D  waterTexture;
 
 varying float vAmount;
 varying vec3 vNormal;
@@ -351,9 +351,9 @@ void main() {
 
     vNormal = normalize(mat3(modelMatrix) * normal);
     vPosition = modelMatrix  * vec4(position, 1.0);
-    //vec4 heightData = texture2D(waterTexture, uv);
-    //vec3 newpos = position + vec3(heightData.g,  heightData.r * 100000.0, heightData.b);
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position , 1.0);
+    vec4 heightData = texture2D(waterTexture, uv);
+    vec3 newpos = position + vec3(0,0, heightData.r * 0.01);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(newpos , 1.0);
   }
 
 }
