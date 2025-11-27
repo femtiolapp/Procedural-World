@@ -380,7 +380,9 @@ function animate() {
 
 
   light_Sphere.position.set(planeControls.lightx, planeControls.lighty, planeControls.lightz);
-
+  if(planeControls.water_Controler == "FFT_wave"){
+    
+ 
 
   philpsObj.visible = true;
 
@@ -399,7 +401,7 @@ function animate() {
   const slopeXRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
   const slopeZRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
   // waterUniforms.waterTexture = renderTargets.philipsSpectrum.texture;
-  const heightTextureRaw = computeFFT(
+  const heightTexture = computeFFT(
     renderer,
     passes,
     renderTargets,
@@ -410,32 +412,29 @@ function animate() {
     heightRT,
   );
 
-  const heightTexture = cloneTexture(renderer, heightTextureRaw);
-  //fftMaterial.uniforms.u_inputTexture.value = mrt.textures[1];
-  const slopeXTextureRaw = computeFFT(
-    renderer,
-    passes,
-    renderTargets,
-    fftMaterial,
-    fftScene,
-    philipsCamera,
-    mrt.textures[1],
-    slopeXRT,
-  );
-  const slopeXTexture = cloneTexture(renderer, slopeXTextureRaw);
-  const slopeZTextureRaw = computeFFT(
-    renderer,
-    passes,
-    renderTargets,
-    fftMaterial,
-    fftScene,
-    philipsCamera,
-    mrt.textures[2],
-    slopeZRT,
+  fftMaterial.uniforms.u_inputTexture.value = mrt.textures[1];
+  // const slopeXTexture = computeFFT(
+  //   renderer,
+  //   passes,
+  //   {...renderTargets, output: slopeXRT},
+  //   fftMaterial,
+  //   fftScene,
+  //   philipsCamera,
+  //   mrt.textures[1],
+    
+  // );
+  // const slopeZTexture= computeFFT(
+  //   renderer,
+  //   passes,
+  //   {...renderTargets, output: slopeZRT},
+  //   fftMaterial,
+  //   fftScene,
+  //   philipsCamera,
+  //   mrt.textures[2],
+    
 
 
-  );
-  const slopeZTexture = cloneTexture(renderer, slopeZTextureRaw);
+  //  );
   // //console.log(renderTargets.height_dx.texture);
   //placeholderObject.visible = false;
   //waterUniforms.waterTexture.value = renderTargets.height_dx.texture;
@@ -444,10 +443,10 @@ function animate() {
   renderer.setRenderTarget(null);
   philpsObj.visible = false;
   waterUniforms.waterHeightTexture.value = heightTexture;
-  waterUniforms.waterslopeXTexture.value = slopeXTexture;
-  waterUniforms.waterslopeZTexture.value = slopeZTexture;
+  waterUniforms.waterslopeXTexture.value = heightTexture;
+  waterUniforms.waterslopeZTexture.value = heightTexture;
 
-
+ }
 
 
 

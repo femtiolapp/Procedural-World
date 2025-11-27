@@ -182,8 +182,8 @@ function displayMultiChannelFloatArrayAsImage(floatArray, size, canvasId) {
     ctx.putImageData(imageData, 0, 0);
 }
 
-//
-export function computeFFT(renderer, passes, renderTargets, material, scene, camera, mrtTexture,outR) {
+
+export function computeFFT(renderer, passes, renderTargets, material, scene, camera, mrtTexture, outRender) {
     // 💡 Add safety to ensure uniform starts clean
 
     // material.uniforms.src.value = null;
@@ -196,8 +196,9 @@ export function computeFFT(renderer, passes, renderTargets, material, scene, cam
 
         const inputTarget = renderTargets[pass.input];
         const outputTarget = renderTargets[pass.output];
-        let inputTexture;
         
+        let inputTexture;
+
         // console.log("output" + outputTarget);
 
         //  console.log(`FFT Pass ${pass.id}: ${pass.input} → ${pass.output}, subSize=${pass.subtransformSize}`);
@@ -221,7 +222,7 @@ export function computeFFT(renderer, passes, renderTargets, material, scene, cam
 
         material.uniforms.u_inputTexture.value = inputTexture;
 
-        
+
 
         material.uniforms.u_subtransformSize.value = pass.subtransformSize;
         material.uniforms.u_horizontal.value = pass.horizontal;
@@ -241,5 +242,64 @@ export function computeFFT(renderer, passes, renderTargets, material, scene, cam
 
     // Reset render target
     renderer.setRenderTarget(null); // reset to screen
-    return lastTexture;
+    
+    renderer.setRenderTarget(outRender);
+    material.uniforms.u_inputTexture.value = lastTexture;
+    renderer.clear(true, true, true);
+    renderer.render(scene, camera);
+    let test;
+    
+    test = outRender.texture;
+    renderer.setRenderTarget(null); // reset to screen
+    return test;
 }
+
+// export function computeFFT(
+//     renderer,
+//     passes,
+//     renderTargets,   // expects { ping, pong, output }
+//     fftMaterial,
+//     fftScene,
+//     camera,
+//     inputTexture
+// ) {
+//     let ping = renderTargets.ping;
+//     let pong = renderTargets.pong;
+
+//     // initial input goes into ping target
+//     fftMaterial.uniforms.u_inputTexture.value = inputTexture;
+
+//     renderer.setRenderTarget(ping);
+//     renderer.render(fftScene, camera);
+
+//     // process each FFT pass
+//     for (let i = 0; i < passes.length; i++) {
+//         const pass = passes[i];
+
+//         // set uniforms for this pass
+//         fftMaterial.uniforms.u_inputTexture.value = ping.texture;
+//         fftMaterial.uniforms.u_subtransformSize.value = pass.subtransformSize;
+//         fftMaterial.uniforms.u_horizontal.value = pass.horizontal;
+//         fftMaterial.uniforms.u_forward.value = pass.forward;
+//         fftMaterial.uniforms.u_normalization.value = pass.normalization;
+//         // render -> pong
+//         renderer.setRenderTarget(pong);
+//         renderer.render(fftScene, camera);
+
+//         // swap
+//         const tmp = ping;
+//         ping = pong;
+//         pong = tmp;
+//     }
+
+//     // final pass: write into user-provided output RT
+//     renderer.setRenderTarget(renderTargets.output);
+//     fftMaterial.uniforms.u_inputTexture.value = ping.texture;
+//     renderer.render(fftScene, camera);
+
+//     renderer.setRenderTarget(null);
+
+//     // return final GPU texture
+//     return renderTargets.output.texture;
+// }
+
