@@ -41,8 +41,6 @@ const loader = new THREE.CubeTextureLoader();
 loader.setPath('/Skybox/allsky/');
 const cube_Texture = loader.load(['px.png', 'nx.png', 'py.png', 'ny.png', 'nz.png', 'pz.png']);
 
-// Background scene setup
-const bgScene = new THREE.Scene();
 
 
 // Uniforms
@@ -202,17 +200,9 @@ const passes = new fft({
 });
 
 
-// Background material setup
-const bgMaterial = new THREE.ShaderMaterial({
-  uniforms: skyUniforms,
-  vertexShader: skyBoxVertexShader,
-  fragmentShader: skyBoxFragmentShader,
-  side: THREE.BackSide,
-  depthWrite: false
-});
 
-const skyCube = new THREE.BoxGeometry(3000, 3000, 3000);
-const bgMesh = new THREE.Mesh(skyCube, bgMaterial);
+
+
 //bgScene.add(bgMesh);
 //scene.add(bgMesh);
 scene.background = cube_Texture;
@@ -384,15 +374,15 @@ function animate() {
     
  
 
-  philpsObj.visible = true;
+    philpsObj.visible = true;
 
-  //renderer.setRenderTarget(mrt);
-  renderer.setRenderTarget(mrt);
-  renderer.clear(true, true, true);
-  renderer.render(philpsScene, philipsCamera);
+    //renderer.setRenderTarget(mrt);
+    renderer.setRenderTarget(mrt);
+    renderer.clear(true, true, true);
+    renderer.render(philpsScene, philipsCamera);
 
 
-  // waterUniforms.waterTexture.value = renderTargets.philipsSpectrum.texture;//mrt.textures[0];
+    // waterUniforms.waterTexture.value = renderTargets.philipsSpectrum.texture;//mrt.textures[0];
 
   philpsObj.visible = false;
   fftObject.visible = true;

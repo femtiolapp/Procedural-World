@@ -52,22 +52,22 @@ float randRange(float x, float minVal, float maxVal) {
 mat4 rotationX(in float angle) {
   return mat4(1.0, 0, 0, 0, 0, cos(radians(angle)), -sin(radians(angle)), 0, 0, sin(radians(angle)), cos(radians(angle)), 0, 0, 0, 0, 1);
 }
-float fbm(in vec2 st) {
-            // Initial values
-  float value = 0.0;
-           // float amplitude = 1.0;
-  float A = fbm_amplitude;
+// float fbm(in vec2 st) {
+//             // Initial values
+//   float value = 0.0;
+//            // float amplitude = 1.0;
+//   float A = fbm_amplitude;
 
-            //
-            // Loop of octaves
+//             //
+//             // Loop of octaves
 
-  for(float i = 0.0; i < numberOfOctaves; i++) {
-    value += A * cnoise(vec3(frequency * st, 1.0 * frequency));
-    st *= 2.27;
-    A *= 0.57;
-  }
-  return value;
-}
+//   for(float i = 0.0; i < numberOfOctaves; i++) {
+//     value += A * cnoise(vec3(frequency * st, 1.0 * frequency));
+//     st *= 2.27;
+//     A *= 0.57;
+//   }
+//   return value;
+// }
 
 vec2 getDirection(in float angleDeg, in vec3 position) {
   int circle_wave = 0;
