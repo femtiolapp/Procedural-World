@@ -48,7 +48,7 @@ export function createSpectrum(amplitude, size, windSpeed, L_domain) {
             const kHat = k.clone().divideScalar(kLen);  // k/klen
             const alignment = kHat.dot(windDirection);
             // Small-wave damping constant
-            const smallWaveDamping = L_domain / 1000;
+            const smallWaveDamping = 0.001;
             const philips = amplitude *
                 Math.exp(-1 / (kLen * L) ** 2) /
                 (kLen ** 4) *
@@ -183,7 +183,19 @@ function displayMultiChannelFloatArrayAsImage(floatArray, size, canvasId) {
 }
 
 
-export function computeFFT(renderer, passes, renderTargets, material, scene, camera, mrtTexture, outRender) {
+export function computeFFT(
+    renderer,
+    passes,
+    renderTargets,
+    material,
+    scene,
+    camera,
+    mrtTexture,
+    outRender,
+    copyScene,
+    copyCamera,
+    copyMaterial,
+) {
     // 💡 Add safety to ensure uniform starts clean
 
     // material.uniforms.src.value = null;
@@ -196,7 +208,7 @@ export function computeFFT(renderer, passes, renderTargets, material, scene, cam
 
         const inputTarget = renderTargets[pass.input];
         const outputTarget = renderTargets[pass.output];
-        
+
         let inputTexture;
 
         // console.log("output" + outputTarget);
@@ -241,17 +253,16 @@ export function computeFFT(renderer, passes, renderTargets, material, scene, cam
     }
 
     // Reset render target
-    renderer.setRenderTarget(null); // reset to screen
-    
+    //renderer.setRenderTarget(null); // reset to screen
+
     renderer.setRenderTarget(outRender);
-    material.uniforms.u_inputTexture.value = lastTexture;
+    copyMaterial.uniforms.u_texture.value = lastTexture;
     renderer.clear(true, true, true);
-    renderer.render(scene, camera);
-    let test;
+    renderer.render(copyScene, copyCamera);
     
-    test = outRender.texture;
-    renderer.setRenderTarget(null); // reset to screen
-    return test;
+
+
+    return outRender.texture;
 }
 
 // export function computeFFT(

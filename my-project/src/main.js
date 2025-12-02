@@ -17,6 +17,8 @@ import fft_passvertex from './shaders/fft_passvertex.glsl?raw';
 import FFT_Function from "glsl-fft/index.glsl?raw";
 import fft from 'glsl-fft';
 import { createSpectrum, computeFFT } from './helperfunctions.js';
+import copyVertex from './shaders/copyvertexShader.glsl?raw';
+import copyFragment from './shaders/copyfragmentShader.glsl?raw';
 
 // Declare global variables
 let container, controls, renderer, scene, camera, mesh, groundMesh;
@@ -75,8 +77,8 @@ const waterUniforms = {
 
 // Plane and GUI control settings
 const planeControls = {
-  width: FFT_SIZE,
-  height: FFT_SIZE,
+  width: 1000,
+  height: 1000,
   displacement: 28.0,
   frequency: 2.0,
   fbm_amplitude: 1.0,
@@ -128,6 +130,14 @@ const rawphilipsMaterial = new THREE.RawShaderMaterial({
   fragmentShader: rphilipsFragmentshader,
 });
 
+const copyMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    u_texture: { value: null }
+  },
+  vertexShader: copyVertex,
+  fragmentShader: copyFragment,
+});
+
 const rtOptions = {
   minFilter: THREE.NearestFilter,
   magFilter: THREE.NearestFilter,
@@ -145,6 +155,7 @@ const OUTPUT_ID = 'height_dx';
 
 const placeHolderplane = new THREE.PlaneGeometry(2, 2);
 const philpsObj = new THREE.Mesh(placeHolderplane, rawphilipsMaterial);
+const copyObj = new THREE.Mesh(placeHolderplane, copyMaterial);
 //Test with seperate fftscene
 
 const philipsCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -178,12 +189,16 @@ const fftMaterial = new THREE.ShaderMaterial({
 });
 const fftObject = new THREE.Mesh(placeHolderplane, fftMaterial);
 fftObject.visible = false;
+const copyScene = new THREE.Scene();
+const copyCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 const fftScene = new THREE.Scene();
 const philpsScene = new THREE.Scene();
 philpsScene.background = null;
 philpsScene.add(philpsObj);
 fftScene.background = null;
 fftScene.add(fftObject);
+copyScene.background = null;
+copyScene.add(copyObj);
 //const passes = fft({256.0, 256.0, philipRender, philipsCamera, false });
 
 // 1. Generate the pass list
@@ -370,9 +385,9 @@ function animate() {
 
 
   light_Sphere.position.set(planeControls.lightx, planeControls.lighty, planeControls.lightz);
-  if(planeControls.water_Controler == "FFT_wave"){
-    
- 
+  if (planeControls.water_Controler == "FFT_wave") {
+
+
 
     philpsObj.visible = true;
 
@@ -384,59 +399,70 @@ function animate() {
 
     // waterUniforms.waterTexture.value = renderTargets.philipsSpectrum.texture;//mrt.textures[0];
 
-  philpsObj.visible = false;
-  fftObject.visible = true;
-  //fftMaterial.uniforms.u_inputTexture.value = renderTargets.philipsSpectrum.textures[0];
-  const heightRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
-  const slopeXRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
-  const slopeZRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
-  // waterUniforms.waterTexture = renderTargets.philipsSpectrum.texture;
-  const heightTexture = computeFFT(
-    renderer,
-    passes,
-    renderTargets,
-    fftMaterial,
-    fftScene,
-    philipsCamera,
-    mrt.textures[0],
-    heightRT,
-  );
+    philpsObj.visible = false;
+    fftObject.visible = true;
+    //fftMaterial.uniforms.u_inputTexture.value = renderTargets.philipsSpectrum.textures[0];
+    const heightRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
+    const slopeXRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
+    const slopeZRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
+    // waterUniforms.waterTexture = renderTargets.philipsSpectrum.texture;
+    const heightTexture = computeFFT(
+      renderer,
+      passes,
+      renderTargets,
+      fftMaterial,
+      fftScene,
+      philipsCamera,
+      mrt.textures[0],
+      heightRT,
+      copyScene,
+      copyCamera,
+      copyMaterial,
+    );
 
-  fftMaterial.uniforms.u_inputTexture.value = mrt.textures[1];
-  // const slopeXTexture = computeFFT(
-  //   renderer,
-  //   passes,
-  //   {...renderTargets, output: slopeXRT},
-  //   fftMaterial,
-  //   fftScene,
-  //   philipsCamera,
-  //   mrt.textures[1],
-    
-  // );
-  // const slopeZTexture= computeFFT(
-  //   renderer,
-  //   passes,
-  //   {...renderTargets, output: slopeZRT},
-  //   fftMaterial,
-  //   fftScene,
-  //   philipsCamera,
-  //   mrt.textures[2],
-    
+    //fftMaterial.uniforms.u_inputTexture.value = mrt.textures[1];
+    const slopeXTexture = computeFFT(
+      renderer,
+      passes,
+      { ...renderTargets, output: slopeXRT },
+      fftMaterial,
+      fftScene,
+      philipsCamera,
+      mrt.textures[1],
+      slopeXRT,
+      copyScene,
+      copyCamera,
+      copyMaterial,
+
+    );
+    const slopeZTexture = computeFFT(
+      renderer,
+      passes,
+      { ...renderTargets, output: slopeZRT },
+      fftMaterial,
+      fftScene,
+      philipsCamera,
+      mrt.textures[2],
+      slopeZRT,
+      copyScene,
+      copyCamera,
+      copyMaterial,
 
 
-  //  );
-  // //console.log(renderTargets.height_dx.texture);
-  //placeholderObject.visible = false;
-  //waterUniforms.waterTexture.value = renderTargets.height_dx.texture;
-  //renderer.render(bgScene, bgCamera);
-  //const safeFftTexture = cloneTexture(renderer, fftOutputTexture);
-  renderer.setRenderTarget(null);
-  philpsObj.visible = false;
-  waterUniforms.waterHeightTexture.value = heightTexture;
-  waterUniforms.waterslopeXTexture.value = heightTexture;
-  waterUniforms.waterslopeZTexture.value = heightTexture;
 
- }
+    );
+    // //console.log(renderTargets.height_dx.texture);
+    //placeholderObject.visible = false;
+    //waterUniforms.waterTexture.value = renderTargets.height_dx.texture;
+    //renderer.render(bgScene, bgCamera);
+    //const safeFftTexture = cloneTexture(renderer, fftOutputTexture);
+    renderer.setRenderTarget(null);
+    philpsObj.visible = false;
+    waterUniforms.waterHeightTexture.value = heightTexture;
+    waterUniforms.waterslopeXTexture.value = slopeXTexture;
+    waterUniforms.waterslopeZTexture.value = slopeZTexture;
+
+  }
 
 
 

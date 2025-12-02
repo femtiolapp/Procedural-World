@@ -353,13 +353,16 @@ void main() {
     
     
     vec4 heightData = texture2D(waterHeightTexture, uv);
-    vec4 slopeX = texture2D(waterslopeXTexture, uv);
-    vec4 slopeY = texture2D(waterslopeZTexture, uv);
-    
-    vec3 new_Norm = normalize(vec3(-slopeX.r, -slopeY.r , 1.0));
+    vec4 slopeXData  = texture2D(waterslopeXTexture, uv);
+    vec4 slopeYData  = texture2D(waterslopeZTexture, uv);
+
+    float slopeX = slopeXData.r;
+    float slopeY = slopeYData.r;
+    float slopeScale = 0.01;
+    vec3 new_Norm = vec3(-slopeX * slopeScale, -slopeY * slopeScale, 1.0);
     vec3 newpos = position + vec3(0,0, heightData.r * 0.01);
     vNormal = normalize(mat3(modelMatrix) * new_Norm);
-    vPosition = modelMatrix  * vec4(position, 1.0);
+    vPosition = modelMatrix  * vec4(newpos, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(newpos , 1.0);
   }
 

@@ -104,11 +104,10 @@ vec2 getKvector(vec2 vuv, float size) {
 vec2 getMirroredK(vec2 vuv, float size) {
     vec2 index = floor(vuv * size);
     //Calculate i = (size - m) % size
-    vec2 mirroredIndex = vec2(mod(size - index.x, size), mod(size - index.y, size));
-
+    //vec2 mirroredIndex = vec2(mod(size - index.x, size), mod(size - index.y, size));
+    vec2 mirroredIndex = mod( - index, size);
     return (mirroredIndex + 0.5) / size;
 }
-
 
 void main() {
     vec4 data = texture(h0Spectrum, vUv);
@@ -129,11 +128,11 @@ void main() {
     vec2 term2 = multiplyComplex(h0_konjugat, phase2);
 
     vec2 complexSpectrum = term1 + term2;
-    vec2 hdx = multiplyComplex(vec2(0.0, k_vector.x), complexSpectrum);
-    vec2 hdz = multiplyComplex(vec2(0.0, k_vector.y), complexSpectrum);
-    
-    outHeight = vec4(complexSpectrum.x, complexSpectrum.y, 0.0, 1.0);
+    vec2 hdx = multiplyComplex(complexSpectrum, vec2(0.0, k_vector.x));
+    vec2 hdz = multiplyComplex(complexSpectrum, vec2(0.0, k_vector.y));
+
+    outHeight = vec4(complexSpectrum.x, complexSpectrum.y, 0.0, 0.0);
     outSlopeX = vec4(hdx, 0.0, 0.0); // complex slope-x frequency
     outSlopeZ = vec4(hdz, 0.0, 0.0); // complex slope-z frequency
-    
+
 }
