@@ -133,6 +133,7 @@ void main() {
 
     outHeight = vec4(complexSpectrum.x, complexSpectrum.y, 0.0, 0.0);
     outSlopeX = vec4(hdx, 0.0, 0.0); // complex slope-x frequency
-    outSlopeZ = vec4(hdz, 0.0, 0.0); // complex slope-z frequency
+    //outSlopeZ = vec4(hdz, 0.0, 0.0); // complex slope-z frequency
+    outSlopeZ = vec4(hdx,hdz );
 
 }

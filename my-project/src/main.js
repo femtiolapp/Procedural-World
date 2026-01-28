@@ -77,8 +77,8 @@ const waterUniforms = {
 
 // Plane and GUI control settings
 const planeControls = {
-  width: 1000,
-  height: 1000,
+  width: 3000,
+  height: 3000,
   displacement: 28.0,
   frequency: 2.0,
   fbm_amplitude: 1.0,
@@ -92,7 +92,7 @@ const planeControls = {
   uWinddirection: 1.0,
   fogHeight: 500.0,
   fogBottom: -10.0,
-  L_Domain: 1000
+  L_Domain: 3000
 };
 
 
@@ -106,7 +106,7 @@ const planeControls = {
 // uniform float uSize;
 // uniform float uplaneSize;
 //Create the philips spectrum
-const philipsTexture = createSpectrum(1.0, 256, 310, planeControls.L_Domain);
+const philipsTexture = createSpectrum(10.0, 256, 31, planeControls.L_Domain);
 //waterUniforms.waterTexture.value = philipsTexture;
 console.log(philipsTexture);
 const philipsUniforms = {

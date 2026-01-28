@@ -356,9 +356,9 @@ void main() {
     vec4 slopeXData  = texture2D(waterslopeXTexture, uv);
     vec4 slopeYData  = texture2D(waterslopeZTexture, uv);
 
-    float slopeX = slopeXData.r;
-    float slopeY = slopeYData.r;
-    float slopeScale = 0.01;
+    float slopeX = slopeYData.r;
+    float slopeY = slopeYData.b;
+    float slopeScale = 0.0009;
     vec3 new_Norm = vec3(-slopeX * slopeScale, -slopeY * slopeScale, 1.0);
     vec3 newpos = position + vec3(0,0, heightData.r * 0.01);
     vNormal = normalize(mat3(modelMatrix) * new_Norm);
