@@ -77,8 +77,8 @@ const waterUniforms = {
 
 // Plane and GUI control settings
 const planeControls = {
-  width: 3000,
-  height: 3000,
+  width: 1000,
+  height: 1000,
   displacement: 28.0,
   frequency: 2.0,
   fbm_amplitude: 1.0,

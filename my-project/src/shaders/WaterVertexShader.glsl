@@ -33,9 +33,9 @@ uniform float uFBMAmplitude;
 uniform float uFBMPersistence;
 uniform float uWavesLacunarity;
 varying float noise_Displacement;
-uniform highp sampler2D  waterHeightTexture;
-uniform highp sampler2D  waterslopeXTexture;
-uniform highp sampler2D  waterslopeZTexture;
+uniform highp sampler2D waterHeightTexture;
+uniform highp sampler2D waterslopeXTexture;
+uniform highp sampler2D waterslopeZTexture;
 varying float vAmount;
 varying vec3 vNormal;
 varying vec4 vPosition;
@@ -87,13 +87,11 @@ vec2 getDirection(in float angleDeg, in vec3 position) {
 vec3 calcSineWave(in Wave waves[4], in float time, in vec3 position) {
           // Sum of sine
 
-
   vec2 d = vec2(0.0);
   float xy = 0.0;
   vec3 result = vec3(0.0);
 
   for(int i = 0; i < 4; i++) {
-    
 
     d = normalize(waves[i].direction);
     xy = dot(d, position.xy);
@@ -116,7 +114,6 @@ vec3 calcNonNegSineWave(in Wave waves[4], in float time, in vec3 position) {
 
   for(int i = 0; i < 4; i++) {
 
-
     d = normalize(waves[i].direction);
     xy = dot(d, position.xy);  // equivalent to: d.x * pos.x + d.y * pos.y
     float theta = xy * waves[i].frequency + time * waves[i].phase;
@@ -137,7 +134,6 @@ vec3 calcNonNegSineWave(in Wave waves[4], in float time, in vec3 position) {
 vec3 calcGerstnerWave(in Wave waves[4], in float time, in vec3 position, out vec3 Normal) {
         // Q = 0 normal sine, Q = 1/(W * A ) sharp crest
 
- 
   vec2 d = vec2(0.0);
   float xy = 0.0;
   vec3 displacedPos = vec3(0.0);
@@ -163,8 +159,8 @@ vec3 calcGerstnerWave(in Wave waves[4], in float time, in vec3 position, out vec
     displacedPos.y += steepness * A * d.y * cosTheta;
     displacedPos.z += A * sinTheta;
     // Accumulate normal gradient
-    grad.x += -d.x * waves[i].frequency * A * cosTheta;
-    grad.y += -d.y * waves[i].frequency * A * cosTheta;
+    grad.x += -steepness * A * waves[i].frequency * d.x * cosTheta;
+    grad.y += -steepness * A * waves[i].frequency * d.y * cosTheta;
     grad.z += steepness * waves[i].frequency * A * sinTheta;
 
   }
@@ -211,7 +207,7 @@ vec3 fbm_Wave(in vec3 point, in float time, in float numberofOctaves) {
   vec3 result = vec3(0.0);
 
   float A = 1.1;
-  
+
   float frequency = 0.1;
   float speed = 0.5;
   vec3 position = point;
@@ -256,40 +252,40 @@ Wave createWave(float wavelength, float amplitude, float speed, float direction,
   return w;
 }
 
-Wave createRandWaves(float medianWavelength, float medianAmplitude , float speed, float windDir, float steepness, float k, float seed) {
+Wave createRandWaves(float medianWavelength, float medianAmplitude, float speed, float windDir, float steepness, float k, float seed) {
   Wave w;
-  float wavelength = randRange(seed, medianWavelength / (2.0), medianWavelength * (2.0));
+  float wavelength = randRange(seed + 11.3, medianWavelength / (2.0), medianWavelength * (2.0)); //seed + decorrelation value
   float amplitude = (medianAmplitude / medianWavelength) * wavelength;
-  float direction = randRange(seed, windDir - 50.0, windDir + 50.0);
+  float direction = radians(randRange(seed + 47.7, windDir - 50.0, windDir + 50.0));
   w = createWave(wavelength, amplitude, speed, direction, steepness, k);
   return w;
 }
 
 void main() {
   vUv = uv;
-  vNormalMatrix = normalMatrix;
+  //vNormalMatrix = normalMatrix;
 
   vec3 pos = position;
 
   int nrWaves = 4;
   float speed[4] = float[4](1.0, 0.5, 1.2, 0.3); //speed?
   float wave_lenght[4] = float[4](20.0, 15.0, 22.1, 16.0);
-  float amplitude[4] = float[4](2.0, 0.4, 0.8, 1.4);
+  float amplitude[4] = float[4](10.0, 7.4, 11.8, 8.4);
           //vec2 direction[4] = vec2[4](vec2(90.0,30.0), vec2(70.0,30.0), vec2(160.0,70.0), vec2(90.0,30.0));
   float direction[4] = float[4](90.0, 70.0, 110.0, 120.0);
 
-  float k[4] = float[4](1.2, 1.5, 1.0, 1.2);
-  float steepness[4] = float[4](1.0, 0.8, 0.1, 1.0);
+  float k[4] = float[4](2.2, 1.5, 1.0, 1.2);
+  float steepness[4] = float[4](2.0, 0.8, 0.1, 1.0);
   Wave[4] waves;
   Wave[4] ranWaves;
-    float baseSeed = 1337.0;
-  for(int l = 0; l < nrWaves; l++) 
-    {
-      float seed = baseSeed + float(l) * 19.17;
-      waves[l] = createWave(wave_lenght[l], amplitude[l], speed[l], direction[l], steepness[l], k[l]);
-      ranWaves[l] = createRandWaves(  uMedianWavelength ,uMedianAmplitude,speed[l], uWinddirection, steepness[l], k[l], seed);
-    };
-  
+  float baseSeed = 1337.0;
+  for(int l = 0; l < nrWaves; l++) {
+    float seed = baseSeed + float(l) * 19.17;
+    float dirRad = radians(direction[l]);
+    waves[l] = createWave(wave_lenght[l], amplitude[l], speed[l], dirRad, steepness[l], k[l]);
+    ranWaves[l] = createRandWaves(uMedianWavelength, uMedianAmplitude, speed[l], uWinddirection, steepness[l], k[l], seed);
+  };
+
   vec3 wave = vec3(0.0, 0.0, 0.0);
   vec3 newPos = vec3(0.0, 0.0, 0.0);
   vec3 biTangent = vec3(0.0, 0.0, 0.0);
@@ -299,25 +295,23 @@ void main() {
 
   if(water_Model == 0) {
 
-    wave = calcSineWave( ranWaves,time,pos);
+    wave = calcSineWave(ranWaves, time, pos);
             //biTangent = vec3(1.0, 0.0, wave.x);
             //Tangent = vec3(0.0 , 1.0, wave.y);
            // new_Norm = cross(biTangent, Tangent);
     vec3 grad = vec3(-wave.x, -wave.y, 1.0);
     new_Norm = normalize(grad);
     newPos = vec3(pos.x, pos.y, wave.z);
-    vNormal = normalize(mat3(modelMatrix) * new_Norm);
+    vNormal = normalize(normalMatrix * new_Norm);
     vPosition = modelMatrix * vec4(newPos, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
   } else if(water_Model == 1) {
 
     wave = calcNonNegSineWave(ranWaves, time, pos);
 
-    biTangent = vec3(1.0, 0.0, wave.x);
-    Tangent = vec3(0.0, 1.0, wave.y);
-    new_Norm = cross(biTangent, Tangent);
-    newPos = vec3(pos.x, pos.y, pos.z + wave.z - 3.5);
-    vNormal = normalize(mat3(modelMatrix) * new_Norm);
+    new_Norm = normalize(vec3(-wave.x, -wave.y, 1.0));
+    newPos = vec3(pos.x, pos.y, wave.z);
+    vNormal = normalize(normalMatrix * new_Norm);
     vPosition = modelMatrix * vec4(newPos, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
 
@@ -328,7 +322,7 @@ void main() {
     vec3 new_Norm = vec3(0.0, 0.0, 0.0);
     vec3 wave = calcGerstnerWave(ranWaves, time, pos, new_Norm);
     new_Norm = normalize(new_Norm);
-    vNormal = normalize(mat3(modelMatrix) * new_Norm);
+    vNormal = normalize(normalMatrix * new_Norm);
     vPosition = modelMatrix * vec4(wave, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(wave, 1.0);
   }
@@ -344,26 +338,24 @@ void main() {
     vec3 bitangent = normalize(vec3(0.0, 2.0 * eps, dy.z));
     vec3 new_Norm = normalize(cross(tangent, bitangent));
     newPos = vec3(pos.x, pos.y, pos.z + wave.z);
-    vNormal = normalize(mat3(modelMatrix) * new_Norm);
-    vPosition = modelMatrix  * vec4(newPos, 1.0);
+    vNormal = normalize(normalMatrix * new_Norm);
+    vPosition = modelMatrix * vec4(newPos, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
   }
   if(water_Model == 4) {
 
-    
-    
     vec4 heightData = texture2D(waterHeightTexture, uv);
-    vec4 slopeXData  = texture2D(waterslopeXTexture, uv);
-    vec4 slopeYData  = texture2D(waterslopeZTexture, uv);
+    vec4 slopeXData = texture2D(waterslopeXTexture, uv);
+    vec4 slopeYData = texture2D(waterslopeZTexture, uv);
 
     float slopeX = slopeYData.r;
     float slopeY = slopeYData.b;
-    float slopeScale = 0.0009;
+    float slopeScale = 0.0003;
     vec3 new_Norm = vec3(-slopeX * slopeScale, -slopeY * slopeScale, 1.0);
-    vec3 newpos = position + vec3(0,0, heightData.r * 0.01);
-    vNormal = normalize(mat3(modelMatrix) * new_Norm);
-    vPosition = modelMatrix  * vec4(newpos, 1.0);
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(newpos , 1.0);
+    vec3 newpos = position + vec3(0, 0, heightData.r * 0.01);
+    vNormal = normalize(normalMatrix * new_Norm);
+    vPosition = modelMatrix * vec4(newpos, 1.0);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(newpos, 1.0);
   }
 
 }
