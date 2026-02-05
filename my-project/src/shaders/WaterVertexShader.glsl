@@ -203,41 +203,68 @@ vec3 orthogonal(vec3 v) {
 
 //}
 vec3 fbm_Wave(in vec3 point, in float time, in float numberofOctaves) {
-        // Initial values
-  vec3 result = vec3(0.0);
+  //       // Initial values
+  // vec3 result = vec3(0.0);
+
+  // float A = 1.1;
+
+  // float frequency = 0.1;
+  // float speed = 0.5;
+  // vec3 position = point;
+  // float random_value = 0.0;
+  // float weight = 0.0;
+
+  // float test = 1.0;
+  // float x = 0.0;
+  // float phi = 0.0;
+  // float d_phi = 0.0;
+  // float drag = 0.5;
+
+  // for(float i = 0.0; i < numberofOctaves; i++) {
+  //   float angle = rand(random_value) * 6.28318530718; // random angle in [0, 2PI)
+  //   vec2 d = vec2(cos(angle), sin(angle));
+  //   float theta = dot(d, position.xy) * frequency + time * speed;
+  //   phi = A * sin(theta);
+  //   d_phi = frequency * cos(theta);
+  //   result.z += phi;
+  //   result.x += A * d_phi * d.x;
+  //   result.y += A * d_phi * d.y;
+
+  //   position.xy += vec2((-result.x), (-result.y)) * 0.5;
+  //   speed *= 0.090;
+  //   weight += A;
+  //   A *= 0.82;
+  //   frequency *= 1.18;
+  //   random_value += 157.0;
+  // }
+  // return result;
+  vec3 disp = vec3(0.0);
 
   float A = 1.1;
-
   float frequency = 0.1;
   float speed = 0.5;
-  vec3 position = point;
-  float random_value = 0.0;
-  float weight = 0.0;
-
-  float test = 1.0;
-  float x = 0.0;
-  float phi = 0.0;
-  float d_phi = 0.0;
-  float drag = 0.5;
 
   for(float i = 0.0; i < numberofOctaves; i++) {
-    float angle = rand(random_value) * 6.28318530718; // random angle in [0, 2PI)
+    float angle = rand(float(i)) * 6.28318530718;
     vec2 d = vec2(cos(angle), sin(angle));
-    float theta = dot(d, position.xy) * frequency + time * speed;
-    phi = A * sin(theta);
-    d_phi = frequency * cos(theta);
-    result.z += phi;
-    result.x += A * d_phi * d.x;
-    result.y += A * d_phi * d.y;
 
-    position.xy += vec2((-result.x), (-result.y)) * 0.5;
-    speed *= 0.090;
-    weight += A;
+    float k = frequency;
+    float w = sqrt(9.81 * k); // dispersion relation
+
+    float theta = dot(d, point.xy) * k - w * time;
+
+    float sinT = sin(theta);
+    float cosT = cos(theta);
+
+    disp.x += d.x * (A * cosT);
+    disp.y += d.y * (A * cosT);
+    disp.z += A * sinT;
+
     A *= 0.82;
     frequency *= 1.18;
-    random_value += 157.0;
   }
-  return result;
+
+  return disp;
 }
 
 Wave createWave(float wavelength, float amplitude, float speed, float direction, float steepness, float k) {
@@ -330,14 +357,19 @@ void main() {
     wave = fbm_Wave(pos, time, numberOfOctaves);
 
     float eps = 0.01;
-    vec3 p = pos;
-    vec3 dx = fbm_Wave(p + vec3(eps, 0.0, 0.0), time, numberOfOctaves) - fbm_Wave(p - vec3(eps, 0.0, 0.0), time, numberOfOctaves);
-    vec3 dy = fbm_Wave(p + vec3(0.0, eps, 0.0), time, numberOfOctaves) - fbm_Wave(p - vec3(0.0, eps, 0.0), time, numberOfOctaves);
 
-    vec3 tangent = normalize(vec3(2.0 * eps, 0.0, dx.z));
-    vec3 bitangent = normalize(vec3(0.0, 2.0 * eps, dy.z));
-    vec3 new_Norm = normalize(cross(tangent, bitangent));
-    newPos = vec3(pos.x, pos.y, pos.z + wave.z);
+    vec3 P = pos + fbm_Wave(pos, time, numberOfOctaves);
+    vec3 Px = (pos + vec3(eps, 0, 0)) + fbm_Wave(pos + vec3(eps, 0, 0), time, numberOfOctaves);
+    vec3 Nx = (pos - vec3(eps, 0, 0)) + fbm_Wave(pos - vec3(eps, 0, 0), time, numberOfOctaves);
+
+    vec3 Py = (pos + vec3(0, eps, 0)) + fbm_Wave(pos + vec3(0, eps, 0), time, numberOfOctaves);
+    vec3 Ny = (pos - vec3(0, eps, 0)) + fbm_Wave(pos - vec3(0, eps, 0), time, numberOfOctaves);
+
+    vec3 dPdx = Px - Nx;
+    vec3 dPdy = Py - Ny;
+
+    vec3 new_Norm = normalize(cross(dPdx, dPdy));
+    newPos = P;
     vNormal = normalize(normalMatrix * new_Norm);
     vPosition = modelMatrix * vec4(newPos, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
@@ -345,14 +377,14 @@ void main() {
   if(water_Model == 4) {
 
     vec4 heightData = texture2D(waterHeightTexture, uv);
-    vec4 slopeXData = texture2D(waterslopeXTexture, uv);
+    //vec4 slopeXData = texture2D(waterslopeXTexture, uv);
     vec4 slopeYData = texture2D(waterslopeZTexture, uv);
 
     float slopeX = slopeYData.r;
     float slopeY = slopeYData.b;
-    float slopeScale = 0.0003;
+    float slopeScale = 0.0008;
     vec3 new_Norm = vec3(-slopeX * slopeScale, -slopeY * slopeScale, 1.0);
-    vec3 newpos = position + vec3(0, 0, heightData.r * 0.01);
+    vec3 newpos = pos + vec3(0, 0, heightData.r * 0.01);
     vNormal = normalize(normalMatrix * new_Norm);
     vPosition = modelMatrix * vec4(newpos, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(newpos, 1.0);
