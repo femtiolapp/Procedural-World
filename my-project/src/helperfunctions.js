@@ -18,7 +18,7 @@ function mirrorIndex(m, n, size) {
 export function createSpectrum(amplitude, size, windSpeed, L_domain) {
 
     const windDirection = new THREE.Vector2(1, 0).normalize();
-    const gravity = 9.81;
+    const gravity = 9.82;
 
     const L = Math.pow(windSpeed, 2) / gravity;
 
@@ -48,9 +48,9 @@ export function createSpectrum(amplitude, size, windSpeed, L_domain) {
             const kHat = k.clone().divideScalar(kLen);  // k/klen
             const alignment = kHat.dot(windDirection);
             // Small-wave damping constant
-            const smallWaveDamping = L_domain / 1000;
+            const smallWaveDamping = 0.1;
             const philips = amplitude *
-                Math.exp(-1 / (kLen * L) ** 2) /
+                Math.exp(-1 / (kLen * L) ** 4) /
                 (kLen ** 4) *
                 (alignment ** 2) *
                 Math.exp(-kLen * kLen * smallWaveDamping * smallWaveDamping);
@@ -73,7 +73,7 @@ export function createSpectrum(amplitude, size, windSpeed, L_domain) {
 
     };
     // const image = createImage(data ,spectrum, gaussNoise, h0Array, size);
-    const image2 = displayMultiChannelFloatArrayAsImage(data, size, "canvas2");
+    //const image2 = displayMultiChannelFloatArrayAsImage(data, size, "canvas2");
     const spectrumTexture = new THREE.DataTexture(
         data,
         size, // width
@@ -182,8 +182,20 @@ function displayMultiChannelFloatArrayAsImage(floatArray, size, canvasId) {
     ctx.putImageData(imageData, 0, 0);
 }
 
-//
-export function computeFFT(renderer, passes, renderTargets, material, scene, camera) {
+
+export function computeFFT(
+    renderer,
+    passes,
+    renderTargets,
+    material,
+    scene,
+    camera,
+    mrtTexture,
+    outRender,
+    copyScene,
+    copyCamera,
+    copyMaterial,
+) {
     // 💡 Add safety to ensure uniform starts clean
 
     // material.uniforms.src.value = null;
@@ -196,7 +208,9 @@ export function computeFFT(renderer, passes, renderTargets, material, scene, cam
 
         const inputTarget = renderTargets[pass.input];
         const outputTarget = renderTargets[pass.output];
+
         let inputTexture;
+
         // console.log("output" + outputTarget);
 
         //  console.log(`FFT Pass ${pass.id}: ${pass.input} → ${pass.output}, subSize=${pass.subtransformSize}`);
@@ -210,17 +224,17 @@ export function computeFFT(renderer, passes, renderTargets, material, scene, cam
         //     srcTexture = inputTarget.texture;
 
         // }
-        if (pass.input === "philipsSpectrum") {
+        if (!lastTexture) {
             // First pass input
-            inputTexture = renderTargets.philipsSpectrum.texture;
+            inputTexture = mrtTexture;
         } else {
             // All other passes use the PREVIOUS output
             inputTexture = lastTexture;
         }
 
         material.uniforms.u_inputTexture.value = inputTexture;
+            
 
-        
 
         material.uniforms.u_subtransformSize.value = pass.subtransformSize;
         material.uniforms.u_horizontal.value = pass.horizontal;
@@ -239,6 +253,65 @@ export function computeFFT(renderer, passes, renderTargets, material, scene, cam
     }
 
     // Reset render target
-    renderer.setRenderTarget(null); // reset to screen
-    return lastTexture;
+    
+
+    renderer.setRenderTarget(outRender);
+    copyMaterial.uniforms.u_texture.value = lastTexture;
+    renderer.clear(true, true, true);
+    
+    renderer.render(copyScene, copyCamera);
+    
+
+
+    return outRender.texture;
 }
+
+// export function computeFFT(
+//     renderer,
+//     passes,
+//     renderTargets,   // expects { ping, pong, output }
+//     fftMaterial,
+//     fftScene,
+//     camera,
+//     inputTexture
+// ) {
+//     let ping = renderTargets.ping;
+//     let pong = renderTargets.pong;
+
+//     // initial input goes into ping target
+//     fftMaterial.uniforms.u_inputTexture.value = inputTexture;
+
+//     renderer.setRenderTarget(ping);
+//     renderer.render(fftScene, camera);
+
+//     // process each FFT pass
+//     for (let i = 0; i < passes.length; i++) {
+//         const pass = passes[i];
+
+//         // set uniforms for this pass
+//         fftMaterial.uniforms.u_inputTexture.value = ping.texture;
+//         fftMaterial.uniforms.u_subtransformSize.value = pass.subtransformSize;
+//         fftMaterial.uniforms.u_horizontal.value = pass.horizontal;
+//         fftMaterial.uniforms.u_forward.value = pass.forward;
+//         fftMaterial.uniforms.u_normalization.value = pass.normalization;
+//         // render -> pong
+//         renderer.setRenderTarget(pong);
+//         renderer.render(fftScene, camera);
+
+//         // swap
+//         const tmp = ping;
+//         ping = pong;
+//         pong = tmp;
+//     }
+
+//     // final pass: write into user-provided output RT
+//     renderer.setRenderTarget(renderTargets.output);
+//     fftMaterial.uniforms.u_inputTexture.value = ping.texture;
+//     renderer.render(fftScene, camera);
+
+//     renderer.setRenderTarget(null);
+
+//     // return final GPU texture
+//     return renderTargets.output.texture;
+// }
+
