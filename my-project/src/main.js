@@ -22,13 +22,13 @@ import copyFragment from './shaders/copyfragmentShader.glsl?raw';
 
 // Declare global variables
 let container, controls, renderer, scene, camera, mesh, groundMesh;
-const FFT_SIZE = 512;
+
 let stats, helper, bbox;
 const start = Date.now();
 const fov = 30;
 
 // Initialize scene and camera
-camera = new THREE.PerspectiveCamera(fov, window.innerWidth / window.innerHeight, 1, 10000);
+camera = new THREE.PerspectiveCamera(fov, window.innerWidth / window.innerHeight, 1, 20000);
 camera.position.set(10, 1000, 1000);
 camera.lookAt(0, 0, 0);
 
@@ -63,56 +63,52 @@ const waterUniforms = {
   lightx: { value: 0.0 },
   lighty: { value: 100.0 },
   lightz: { value: 0.0 },
-  water_Color: { value: new THREE.Vector3(0.0, 0.0, 1.0) },
+  water_Color: { value: new THREE.Vector3(0.005, 0.04, 0.25) },
   water_Model: { value: 0 },
   cube_Texture: { value: cube_Texture },
-  diffuse_water_Color: { value: new THREE.Vector3(0.0, 0.0, 1.0) },
+  diffuse_water_Color: { value: new THREE.Vector3(0.08, 0.15, 0.30) },
   uMedianAmplitude: { value: 1.0 },
   uMedianWavelength: { value: 15.0 },
   uWinddirection: { value: 0.0 },
   waterHeightTexture: { value: 0.0 },
   waterslopeXTexture: { value: 0.0 },
-  waterslopeZTexture: { value: 0.0 }
+  waterslopeZTexture: { value: 0.0 },
+  
 };
 
 // Plane and GUI control settings
 const planeControls = {
-  width: 3000,
-  height: 3000,
+  width: 10000,
+  height: 10000,
   displacement: 28.0,
   frequency: 2.0,
   fbm_amplitude: 1.0,
-  numberOfOctaves: 5.0,
+  numberOfOctaves: 5,
   lightx: 0.0,
-  lighty: 113.0,
-  lightz: -3000.0,
+  lighty: 500.0,
+  lightz: -8000.0,
   water_Controler: 'FFT_wave',
   uMedianAmplitude: 1.0,
   uMedianWavelength: 15.0,
   uWinddirection: 1.0,
-  fogHeight: 500.0,
+  
   fogBottom: -10.0,
-  L_Domain: 3000
+  L_Domain: 512
 };
 
 
-
-//Calculate conjugate over time in a fragment shader.
-
-// uniform sampler2D h0Spectrum; // xy = h0(k), zw = h0(-k)
-
-// uniform float uTime;
-// uniform float uGravity;
-// uniform float uSize;
-// uniform float uplaneSize;
+const FFT_SIZE = 512;
+const FFT_A = 0.1;
+const FFT_windspeed = 35.0;
 //Create the philips spectrum
-const philipsTexture = createSpectrum(10.0, FFT_SIZE, 31, planeControls.L_Domain);
+const philipsTexture = createSpectrum(FFT_A, FFT_SIZE, FFT_windspeed, planeControls.L_Domain);
+const philipsTexturetwo = createSpectrum(FFT_A + 100.0, FFT_SIZE, FFT_windspeed, planeControls.L_Domain);
 //waterUniforms.waterTexture.value = philipsTexture;
 console.log(philipsTexture);
 const philipsUniforms = {
   uTime: { value: waterUniforms.time },
   uGravity: { value: 9.82 },
-  uSize: { value: planeControls.width },
+  uSize: { value:FFT_SIZE },
   h0Spectrum: { value: philipsTexture },
   L_Domain: { value: planeControls.L_Domain }
 };
@@ -182,7 +178,7 @@ const fftMaterial = new THREE.ShaderMaterial({
     u_subtransformSize: { value: 0 },
     u_horizontal: { value: false },
     u_forward: { value: false },
-    u_normalization: { value: 0 }
+    u_normalization: { value: 1 }
   },
   vertexShader: fft_passvertex,
   fragmentShader: fft_passfrag_code,
@@ -225,6 +221,7 @@ const slopeZRT = new THREE.WebGLRenderTarget(FFT_SIZE, FFT_SIZE, rtOptions);
 //scene.add(bgMesh);
 scene.background = cube_Texture;
 scene.environment = cube_Texture;
+
 const bgRenderTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
 
 // Water material and mesh
@@ -247,23 +244,23 @@ scene.add(groundMesh);
 // Helpers
 const axesHelper = new THREE.AxesHelper(400);
 axesHelper.position.set(700, 0, 700);
-scene.add(axesHelper);
+//scene.add(axesHelper);
 
 const plane_axesHelper = new THREE.AxesHelper(500);
 plane_axesHelper.position.set(700, 0, 0);
 plane_axesHelper.rotation.x = -Math.PI / 2;
-scene.add(plane_axesHelper);
+//scene.add(plane_axesHelper);
 
 const light_Sphere = new THREE.Mesh(
   new THREE.SphereGeometry(10, 32, 32),
   new THREE.MeshBasicMaterial({ color: 0x00ff00 })
 );
 light_Sphere.position.set(0, 0, 0);
-scene.add(light_Sphere);
+//scene.add(light_Sphere);
 
 bbox = new THREE.Box3().setFromObject(groundMesh);
 helper = new THREE.Box3Helper(bbox, 0xffff00);
-scene.add(helper);
+//scene.add(helper);
 
 // Renderer and DOM setup
 renderer = new THREE.WebGLRenderer({ precision: 'highp' });
@@ -330,8 +327,8 @@ waterFolder.add(planeControls, 'uMedianAmplitude', 1, 10).name('Median Amp').lis
 waterFolder.add(planeControls, 'uMedianWavelength', 1, 50).name('MedianWavel').listen();
 waterFolder.add(planeControls, 'uWinddirection', 0, 360).name('Wind Direction').listen();
 waterFolder.add(planeControls, 'water_Controler', ['Sum of sines', 'None negative sum of sine', 'Gestner_wave', 'FBM_wave', 'FFT_wave']).listen();
-waterFolder.add(planeControls, 'fogHeight', 250, 1000).name('Fog Height').listen();
-waterFolder.add(planeControls, 'fogBottom', -20, 100).name('Fog Bottom').listen();
+
+
 waterFolder.open();
 
 
@@ -382,21 +379,22 @@ function animate() {
   waterUniforms.lighty.value = planeControls.lighty;
   waterUniforms.lightz.value = planeControls.lightz;
 
-  skyUniforms.fogBottom.value = planeControls.fogBottom;
-  skyUniforms.fogHeight.value = planeControls.fogHeight;
+
+
   skyUniforms.cameraPosition.value.copy(camera.position);
 
 
   light_Sphere.position.set(planeControls.lightx, planeControls.lighty, planeControls.lightz);
   if (planeControls.water_Controler == "FFT_wave") {
 
-
-
+   
+   // philipsUniforms.h0Spectrum.value = philipsTexture;
     philpsObj.visible = true;
 
     //renderer.setRenderTarget(mrt);
     renderer.setRenderTarget(mrt);
     renderer.clear(true, true, true);
+    
     renderer.render(philpsScene, philipsCamera);
 
 
@@ -405,7 +403,7 @@ function animate() {
     philpsObj.visible = false;
     fftObject.visible = true;
     //fftMaterial.uniforms.u_inputTexture.value = renderTargets.philipsSpectrum.textures[0];
-    computeFFT(renderer, passes, renderTargets, fftMaterial, fftScene, philipsCamera, mrt.textures[2], slopeZRT, copyScene, copyCamera, copyMaterial);
+   // computeFFT(renderer, passes, renderTargets, fftMaterial, fftScene, philipsCamera, mrt.textures[2], slopeZRT, copyScene, copyCamera, copyMaterial);
     // waterUniforms.waterTexture = renderTargets.philipsSpectrum.texture;
     //Height value
     computeFFT(
@@ -463,7 +461,7 @@ function animate() {
     renderer.setRenderTarget(null);
     philpsObj.visible = false;
     waterUniforms.waterHeightTexture.value = heightRT.texture;
-    waterUniforms.waterslopeXTexture.value = slopeXRT.Texture;
+    waterUniforms.waterslopeXTexture.value = slopeXRT.texture;
     waterUniforms.waterslopeZTexture.value = slopeZRT.texture;
 
   }

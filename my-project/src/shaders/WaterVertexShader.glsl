@@ -40,6 +40,7 @@ varying float vAmount;
 varying vec3 vNormal;
 varying vec4 vPosition;
 varying mat3 vNormalMatrix;
+int nrWaves = 4;
 
 float PI = 3.14159265359;
 
@@ -51,6 +52,28 @@ float randRange(float x, float minVal, float maxVal) {
 }
 mat4 rotationX(in float angle) {
   return mat4(1.0, 0, 0, 0, 0, cos(radians(angle)), -sin(radians(angle)), 0, 0, sin(radians(angle)), cos(radians(angle)), 0, 0, 0, 0, 1);
+}
+
+float random(in vec2 st) {
+    return fract(sin(dot(st.xy,
+                         vec2(12.9898,78.233)))*
+        43758.5453123);
+}
+float Testnoise(in vec2 st) {
+    vec2 i = floor(st);
+    vec2 f = fract(st);
+
+    // Four corners in 2D of a tile
+    float a = random(i);
+    float b = random(i + vec2(1.0, 0.0));
+    float c = random(i + vec2(0.0, 1.0));
+    float d = random(i + vec2(1.0, 1.0));
+
+    vec2 u = f * f * (3.0 - 2.0 * f);
+
+    return mix(a, b, u.x) +
+            (c - a)* u.y * (1.0 - u.x) +
+            (d - b) * u.x * u.y;
 }
 // float fbm(in vec2 st) {
 //             // Initial values
@@ -91,7 +114,7 @@ vec3 calcSineWave(in Wave waves[4], in float time, in vec3 position) {
   float xy = 0.0;
   vec3 result = vec3(0.0);
 
-  for(int i = 0; i < 4; i++) {
+  for(int i = 0; i < nrWaves; i++) {
 
     d = normalize(waves[i].direction);
     xy = dot(d, position.xy);
@@ -112,7 +135,7 @@ vec3 calcNonNegSineWave(in Wave waves[4], in float time, in vec3 position) {
   float xy = 0.0;
   vec3 result = vec3(0.0);
 
-  for(int i = 0; i < 4; i++) {
+  for(int i = 0; i < nrWaves; i++) {
 
     d = normalize(waves[i].direction);
     xy = dot(d, position.xy);  // equivalent to: d.x * pos.x + d.y * pos.y
@@ -142,9 +165,9 @@ vec3 calcGerstnerWave(in Wave waves[4], in float time, in vec3 position, out vec
   vec3 Tangent = vec3(0.0);
   float random_value = 0.0;
   vec3 grad = vec3(0.0); //Normal
-  for(int i = 0; i < 4; i++) {
+  for(int i = 0; i < nrWaves; i++) {
     float A = waves[i].amplitude;
-    float steepness = waves[i].steepness;
+    float steepness = waves[i].steepness;  //prova Q/(wi Ai x numWaves) 
 
             //vec2 d = normalize(vec2(sin(random_value),cos(random_value)));
     d = normalize(waves[i].direction);
@@ -203,45 +226,11 @@ vec3 orthogonal(vec3 v) {
 
 //}
 vec3 fbm_Wave(in vec3 point, in float time, in float numberofOctaves) {
-  //       // Initial values
-  // vec3 result = vec3(0.0);
 
-  // float A = 1.1;
-
-  // float frequency = 0.1;
-  // float speed = 0.5;
-  // vec3 position = point;
-  // float random_value = 0.0;
-  // float weight = 0.0;
-
-  // float test = 1.0;
-  // float x = 0.0;
-  // float phi = 0.0;
-  // float d_phi = 0.0;
-  // float drag = 0.5;
-
-  // for(float i = 0.0; i < numberofOctaves; i++) {
-  //   float angle = rand(random_value) * 6.28318530718; // random angle in [0, 2PI)
-  //   vec2 d = vec2(cos(angle), sin(angle));
-  //   float theta = dot(d, position.xy) * frequency + time * speed;
-  //   phi = A * sin(theta);
-  //   d_phi = frequency * cos(theta);
-  //   result.z += phi;
-  //   result.x += A * d_phi * d.x;
-  //   result.y += A * d_phi * d.y;
-
-  //   position.xy += vec2((-result.x), (-result.y)) * 0.5;
-  //   speed *= 0.090;
-  //   weight += A;
-  //   A *= 0.82;
-  //   frequency *= 1.18;
-  //   random_value += 157.0;
-  // }
-  // return result;
   vec3 disp = vec3(0.0);
 
-  float A = 1.1;
-  float frequency = 0.1;
+  float A = 1.0;
+  float frequency = 0.08;
   float speed = 0.5;
 
   for(float i = 0.0; i < numberofOctaves; i++) {
@@ -249,7 +238,7 @@ vec3 fbm_Wave(in vec3 point, in float time, in float numberofOctaves) {
     vec2 d = vec2(cos(angle), sin(angle));
 
     float k = frequency;
-    float w = sqrt(9.81 * k); // dispersion relation
+    float w = sqrt(9.82 * k); // dispersion relation
 
     float theta = dot(d, point.xy) * k - w * time;
 
@@ -261,8 +250,10 @@ vec3 fbm_Wave(in vec3 point, in float time, in float numberofOctaves) {
     disp.z += A * sinT;
 
     A *= 0.82;
-    frequency *= 1.18;
+    frequency *= 1.1;
   }
+  
+  
 
   return disp;
 }
@@ -270,7 +261,7 @@ vec3 fbm_Wave(in vec3 point, in float time, in float numberofOctaves) {
 Wave createWave(float wavelength, float amplitude, float speed, float direction, float steepness, float k) {
   Wave w;
   float g = 9.82;
-  w.frequency = 2.0 / wavelength;
+  w.frequency = 2.0  / wavelength;  
   w.amplitude = amplitude;
   w.phase = speed * sqrt(g * 2.0 * PI / wavelength);
   w.direction = vec2(cos(direction), sin(direction));
@@ -294,15 +285,15 @@ void main() {
 
   vec3 pos = position;
 
-  int nrWaves = 4;
+  
   float speed[4] = float[4](1.0, 0.5, 1.2, 0.3); //speed?
-  float wave_lenght[4] = float[4](20.0, 15.0, 22.1, 16.0);
-  float amplitude[4] = float[4](10.0, 7.4, 11.8, 8.4);
+  float wave_lenght[4] = float[4](10.0, 15.0, 12.1, 16.0);
+  float amplitude[4] = float[4](5.0, 7.4, 4.8, 8.4);
           //vec2 direction[4] = vec2[4](vec2(90.0,30.0), vec2(70.0,30.0), vec2(160.0,70.0), vec2(90.0,30.0));
-  float direction[4] = float[4](90.0, 70.0, 110.0, 120.0);
+  float direction[4] = float[4](0.0, 70.0, 110.0, 120.0);
 
-  float k[4] = float[4](2.2, 1.5, 1.0, 1.2);
-  float steepness[4] = float[4](2.0, 0.8, 0.1, 1.0);
+  float k[4] = float[4](2.5, 2.5, 2.5, 2.5);
+  float steepness[4] = float[4](0.6, 0.8, 0.1, 1.0);
   Wave[4] waves;
   Wave[4] ranWaves;
   float baseSeed = 1337.0;
@@ -343,7 +334,7 @@ void main() {
     gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
 
   }
-  if(water_Model == 2) {
+   else if(water_Model == 2) {
             //in float speed,in float wave_lenght , in float amplitude, in float time, in vec2 direction, in vec3 position, in int water_Model, in float k, in float Q, out vec3 Normal
 
     vec3 new_Norm = vec3(0.0, 0.0, 0.0);
@@ -353,7 +344,7 @@ void main() {
     vPosition = modelMatrix * vec4(wave, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(wave, 1.0);
   }
-  if(water_Model == 3) {
+  else if(water_Model == 3) {
     wave = fbm_Wave(pos, time, numberOfOctaves);
 
     float eps = 0.01;
@@ -374,17 +365,19 @@ void main() {
     vPosition = modelMatrix * vec4(newPos, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
   }
-  if(water_Model == 4) {
+  else if(water_Model == 4) {
 
     vec4 heightData = texture2D(waterHeightTexture, uv);
-    //vec4 slopeXData = texture2D(waterslopeXTexture, uv);
-    vec4 slopeYData = texture2D(waterslopeZTexture, uv);
+    vec4 slopeXData = texture2D(waterslopeXTexture, uv);
+    vec4 slopeZData = texture2D(waterslopeZTexture, uv);
+    
 
-    float slopeX = slopeYData.r;
-    float slopeY = slopeYData.b;
-    float slopeScale = 0.0008;
-    vec3 new_Norm = vec3(-slopeX * slopeScale, -slopeY * slopeScale, 1.0);
-    vec3 newpos = pos + vec3(0, 0, heightData.r * 0.01);
+    float slopeX = slopeXData.r;
+    float slopeY = slopeZData.r;
+    float amplitudeScale = 1.0;
+    float slopeScale = 0.05;
+    vec3 new_Norm = normalize(vec3(-slopeX * slopeScale, -slopeY * slopeScale, 1.0));
+    vec3 newpos = pos + vec3(0, 0, heightData.r * amplitudeScale);
     vNormal = normalize(normalMatrix * new_Norm);
     vPosition = modelMatrix * vec4(newpos, 1.0);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(newpos, 1.0);

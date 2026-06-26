@@ -18,7 +18,7 @@ function mirrorIndex(m, n, size) {
 export function createSpectrum(amplitude, size, windSpeed, L_domain) {
 
     const windDirection = new THREE.Vector2(1, 0).normalize();
-    const gravity = 9.81;
+    const gravity = 9.82;
 
     const L = Math.pow(windSpeed, 2) / gravity;
 
@@ -48,9 +48,9 @@ export function createSpectrum(amplitude, size, windSpeed, L_domain) {
             const kHat = k.clone().divideScalar(kLen);  // k/klen
             const alignment = kHat.dot(windDirection);
             // Small-wave damping constant
-            const smallWaveDamping = 0.001;
+            const smallWaveDamping = 0.1;
             const philips = amplitude *
-                Math.exp(-1 / (kLen * L) ** 2) /
+                Math.exp(-1 / (kLen * L) ** 4) /
                 (kLen ** 4) *
                 (alignment ** 2) *
                 Math.exp(-kLen * kLen * smallWaveDamping * smallWaveDamping);
@@ -233,7 +233,7 @@ export function computeFFT(
         }
 
         material.uniforms.u_inputTexture.value = inputTexture;
-
+            
 
 
         material.uniforms.u_subtransformSize.value = pass.subtransformSize;
@@ -253,11 +253,12 @@ export function computeFFT(
     }
 
     // Reset render target
-    //renderer.setRenderTarget(null); // reset to screen
+    
 
     renderer.setRenderTarget(outRender);
     copyMaterial.uniforms.u_texture.value = lastTexture;
     renderer.clear(true, true, true);
+    
     renderer.render(copyScene, copyCamera);
     
 
